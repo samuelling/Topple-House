@@ -98,11 +98,6 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
 .labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
 .tlabel { position: absolute; left: 0; top: 0; white-space: nowrap; font-size: 11.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: rgba(22,26,36,.82); color: var(--chalk); border: 1px solid rgba(246,179,60,.6); font-variant-numeric: tabular-nums; }
 .tlabel.hit { border-color: var(--go); color: #c9f2dc; }
-.tlabel.agent { border-color: rgba(120,170,255,.75); color: #d8e6ff; font-weight: 600; }
-.tlabel.agent.cat { border-color: rgba(224,138,60,.85); color: #ffe2c6; }
-.tierhead { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 2px; padding-top: 10px; }
-.tierhead b { font-family: var(--f-display); font-weight: 400; font-size: 18px; }
-.tierhead span { color: var(--muted); font-size: 13px; }
 .camctl { position: absolute; z-index: 3; right: max(10px, env(safe-area-inset-right, 0px)); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px; }
 .iconbtn.cam { background: rgba(33,39,54,.9); border: 1px solid var(--line); width: 42px; height: 42px; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
 .float { position: absolute; left: 50%; transform: translateX(-50%); z-index: 3; display: flex; align-items: center; gap: 6px; background: rgba(33,39,54,.94); border: 1px solid var(--line); border-radius: 999px; padding: 5px 6px 5px 14px; font-size: 13px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.35); max-width: calc(100% - 24px); white-space: nowrap; }
@@ -238,10 +233,6 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
             <span class="ds">Like real life, setting a domino down next to a standing one can knock the whole line over. Builders leave a gap every so often and close it last.</span>
           </div>
           <div class="setting">
-            <span class="nm">Cat visits every room</span><input type="checkbox" class="switch" id="catAll">
-            <span class="ds">The cat from the Sunroom wanders over now and then while you build and bats a domino out of line. Tap it to shoo it away.</span>
-          </div>
-          <div class="setting">
             <span class="nm">Slow-motion playback</span><input type="checkbox" class="switch" id="slow">
             <span class="ds">Plays previews and runs at quarter speed.</span>
           </div>
@@ -311,17 +302,8 @@ const GADGETS = {
   lift: { name: 'Pulley lift', kind: 'lift', len: 18, wid: 16, base: 3, speed: 55, push: 70, pmin: 16, pmax: 140, pdef: 60, pstep: 2, label: 'Height', fmt: cm },
   trampoline: { name: 'Trampoline', kind: 'tramp', len: 26, wid: 26, base: 8, angle: 66 * Math.PI / 180, pmin: 150, pmax: 480, pdef: 300, pstep: 10, label: 'Spring', fmt: cmS },
 };
-// Household agents that move on their own during a run (paths in plan cm, speed in cm/s, start in s).
-//   roomba  drives its loop from t=0; anything it bumps falls over (and chains on), gadgets go off and it reverses
-//   baby    waits, then crawls its lane once; it flattens dominoes (they don't chain on) and plays with gadgets it reaches
-// The cat is separate: it naps on its bed during a run and pounces on any marble rolling within reach.
-const AGENTS = {
-  roomba: { name: 'Robot vacuum', speed: 32, body: [[0, 17]], mode: 'topple' },
-  baby: { name: 'Baby', speed: 24, body: [[0, 10], [13, 8]], mode: 'squash' },
-};
-const CAT = { pounceR: 60, leap: 0.35 };
 // Height of each target's body, for reach checks
-const TARGET_H = { bell: 7, switch: 9, remote: 2, cereal: 22, chime: 11, duck: 12, doorbell: 12, trophy: 18, musicbox: 9, popcorn: 9, button: 6, watering: 16, windchime: 14 };
+const TARGET_H = { bell: 7, switch: 9, remote: 2, cereal: 22, chime: 11, duck: 12, doorbell: 12, trophy: 18 };
 
 // ---------- Rooms ----------
 // furniture: top = height of its top surface; build = dominoes can stand on it.
@@ -450,69 +432,6 @@ const LEVELS = [
     toolbox: { lift: 1, trampoline: 1, ramp: 1 },
     budget: 50, par: 30,
   },
-  // ---- Later levels: the household wakes up ----
-  {
-    id: 'nursery', name: 'Nursery', mission: 'Lullaby', tier: 2,
-    goal: 'Start the music box. The baby flattens anything in its lane.', w: 300, h: 320, floor: 'lavender',
-    doors: [{ side: 'R', a: 240, b: 290, link: true }],
-    decor: [{ k: 'playmat', x: 100, y: 225, w: 60, h: 50 }, { k: 'rug', x: 20, y: 20, w: 90, h: 70 }],
-    furniture: [
-      { id: 'changer', k: 'dresser', x: 10, y: 150, w: 105, h: 50, top: 90, build: true, label: 'Changing table' },
-      { id: 'chest', k: 'toybox', x: 145, y: 150, w: 75, h: 50, top: 45, build: true, label: 'Toy chest' },
-      { id: 'drawers', k: 'dresser', x: 220, y: 150, w: 70, h: 50, top: 82, build: true, label: 'Drawers' },
-      { id: 'crib', k: 'crib', x: 180, y: 10, w: 110, h: 62, top: 95, label: 'Crib' },
-      { id: 'rocker', k: 'armchair', x: 15, y: 245, w: 60, h: 60, top: 30, label: 'Rocking chair' },
-    ],
-    noPlace: [], stairs: [],
-    targets: [{ id: 'musicbox', k: 'musicbox', x: 50, y: 50, r: 6, label: 'Music box' }],
-    props: [{ k: 'marble', x: 278, y: 302, a: Math.PI, start: true }],
-    agents: [{ k: 'baby', path: [[130, 240], [130, 40]], start: 1 }],
-    toolbox: { catapult: 1, trampoline: 1 },
-    budget: 60, par: 20,
-  },
-  {
-    id: 'den', name: 'Den', mission: 'Movie night', tier: 2,
-    goal: 'No marble here: the robot vacuum starts it all. Hit the console button and the popcorn.', w: 320, h: 300, floor: 'wood',
-    doors: [{ side: 'L', a: 250, b: 290, link: true }],
-    decor: [{ k: 'rug', x: 120, y: 125, w: 100, h: 110 }, { k: 'dock', x: 60, y: 255, w: 14, h: 20 }],
-    furniture: [
-      { id: 'sofa', k: 'sofa', x: 10, y: 80, w: 60, h: 160, top: 30, label: 'Sofa' },
-      { id: 'tv', k: 'tv', x: 275, y: 90, w: 35, h: 140, top: 45, label: 'TV stand' },
-      { id: 'side', k: 'nightstand', x: 80, y: 18, w: 50, h: 46, top: 50, build: true, label: 'Side table' },
-      { k: 'plant', cx: 292, cy: 30, r: 16, top: 60, label: 'Plant' },
-    ],
-    noPlace: [], stairs: [],
-    targets: [
-      { id: 'popcorn', k: 'popcorn', x: 105, y: 40, r: 7, on: 'side', label: 'Popcorn' },
-      { id: 'console', k: 'button', x: 292, y: 262, r: 6, label: 'Console button' },
-    ],
-    props: [],
-    agents: [{ k: 'roomba', path: [[95, 265], [250, 265], [250, 95], [160, 95], [95, 95]], loop: true, start: 0, speed: 40 }],
-    toolbox: { catapult: 2, trampoline: 1 },
-    budget: 80, par: 30,
-  },
-  {
-    id: 'sunroom', name: 'Sunroom', mission: 'Water the plants', tier: 2,
-    goal: 'Tip the watering can and ring the wind chime. Mind the cat.', w: 320, h: 280, floor: 'terracotta',
-    doors: [{ side: 'L', a: 30, b: 80, link: true }],
-    decor: [{ k: 'rug', x: 100, y: 205, w: 120, h: 60 }],
-    furniture: [
-      { id: 'side', k: 'nightstand', x: 135, y: 12, w: 50, h: 44, top: 50, build: true, label: 'Side table' },
-      { id: 'stand', k: 'plantstand', x: 252, y: 15, w: 50, h: 50, top: 70, label: 'Plant stand' },
-      { id: 'cattree', k: 'cattree', x: 258, y: 115, w: 48, h: 48, top: 110, label: 'Cat tree' },
-      { id: 'chair', k: 'armchair', x: 18, y: 200, w: 62, h: 62, top: 30, label: 'Wicker chair' },
-      { k: 'plant', cx: 32, cy: 130, r: 16, top: 60, label: 'Fern' },
-    ],
-    noPlace: [], stairs: [],
-    targets: [
-      { id: 'can', k: 'watering', x: 277, y: 40, r: 7, on: 'stand', label: 'Watering can' },
-      { id: 'windchime', k: 'windchime', x: 288, y: 255, r: 6, label: 'Wind chime' },
-    ],
-    props: [{ k: 'marble', x: 24, y: 100, a: 0, start: true }],
-    cat: { bed: [165, 150] },
-    toolbox: { catapult: 1, trampoline: 1, ramp: 1 },
-    budget: 100, par: 75,
-  },
 ];
 const SANDBOX_TOOLBOX = { catapult: 20, trebuchet: 20, ramp: 20, lift: 20, trampoline: 20 };
 
@@ -613,7 +532,7 @@ function wallsFor(L, closedDoors) {
 }
 
 function buildWorld(levelIds, sandbox) {
-  const W = { statics: [], targets: [], props: [], stairs: [], noPlace: [], rooms: [], decor: [], furniture: [], walls: [], doors: [], gaps: [], tops: {}, sandbox, ordered: false, toolbox: {}, agents: [], cat: null };
+  const W = { statics: [], targets: [], props: [], stairs: [], noPlace: [], rooms: [], decor: [], furniture: [], walls: [], doors: [], gaps: [], tops: {}, sandbox, ordered: false, toolbox: {} };
   for (const id of levelIds) {
     const L = LEVELS.find(l => l.id === id);
     const [ox, oy] = sandbox ? HOUSE_OFFSETS[id] : [0, 0];
@@ -659,14 +578,6 @@ function buildWorld(levelIds, sandbox) {
     });
     for (const d of L.decor) W.decor.push({ ...d, x: d.x + ox, y: d.y + oy });
     for (const n of L.noPlace) W.noPlace.push({ ...n, x: n.x + ox, y: n.y + oy, poly: rectPoly(n.x + ox, n.y + oy, n.w, n.h) });
-    if (!sandbox) {
-      for (const a of (L.agents || [])) W.agents.push({ ...a, path: a.path.map(([x, y]) => [x + ox, y + oy]) });
-      if (L.cat) {
-        const [bx, by] = L.cat.bed;
-        W.cat = { bed: [bx + ox, by + oy], r: CAT.pounceR };
-        W.noPlace.push({ x: bx + ox - 16, y: by + oy - 16, w: 32, h: 32, label: 'Cat bed', cat: true, poly: circlePoly(bx + ox, by + oy, 16) });
-      }
-    }
     for (const t of L.targets) {
       const g = { ...t, id: sandbox ? id + ':' + t.id : t.id, x: t.x + ox, y: t.y + oy };
       g.L = t.on ? fid(t.on) : 'g';
@@ -851,98 +762,6 @@ function makeBall(W, p) {
   const z = layerZ(W, p.L || 'g', p.x, p.y) + p.r;
   return { k: p.k, x: p.x, y: p.y, z, r: p.r, a: p.a || 0, start: !!p.start, vx: 0, vy: 0, vz: 0, moving: false, src: null, born: 0, label: p.label };
 }
-// ---------- Household agents ----------
-function pathInfo(A) {
-  const pts = A.loop ? [...A.path, A.path[0]] : A.path, cum = [0];
-  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
-  return { pts, cum, total: cum[cum.length - 1] };
-}
-// Position and heading at distance s along an agent's path
-function poseAlong(info, s, loop) {
-  const T = info.total;
-  if (loop) s = ((s % T) + T) % T; else s = Math.max(0, Math.min(T, s));
-  let i = 1; while (i < info.cum.length - 1 && info.cum[i] < s) i++;
-  const [x0, y0] = info.pts[i - 1], [x1, y1] = info.pts[i], L = info.cum[i] - info.cum[i - 1] || 1, f = (s - info.cum[i - 1]) / L;
-  return [x0 + (x1 - x0) * f, y0 + (y1 - y0) * f, Math.atan2(y1 - y0, x1 - x0)];
-}
-// Where an agent would be at time t with nothing in its way (for route markers and edit mode)
-function agentPose(A, t) {
-  const info = A.info || (A.info = pathInfo(A)), sp = A.speed || AGENTS[A.k].speed;
-  return poseAlong(info, Math.max(0, t - (A.start || 0)) * sp, !!A.loop);
-}
-// When an agent stops mattering: the baby once it reaches the end, the roomba after one lap
-function agentUntil(A) { const info = A.info || (A.info = pathInfo(A)); return (A.start || 0) + info.total / (A.speed || AGENTS[A.k].speed); }
-function stepAgents(sim, dt) {
-  const W = sim.W;
-  for (const a of sim.agents) {
-    const S = AGENTS[a.k];
-    if (sim.t < (a.start || 0) || a.sitting) { if (!a.sitting) [a.x, a.y, a.a] = poseAlong(a.info, 0, a.loop); continue; }
-    a.s += a.dir * a.speed * dt;
-    if (!a.loop && (a.s >= a.info.total || a.s <= 0)) { a.s = Math.max(0, Math.min(a.info.total, a.s)); a.sitting = true; }
-    let [x, y, h] = poseAlong(a.info, a.s, a.loop);
-    if (a.dir < 0) h += Math.PI;
-    a.x = x; a.y = y; a.a = h;
-    const fz = floorAt(W, x, y), hx = Math.cos(h), hy = Math.sin(h);
-    for (const [off, cr] of S.body) {
-      const cx = x + hx * off, cy = y + hy * off;
-      // dominoes on the floor
-      for (const j of sim.idx.near(cx, cy, cr + 5)) {
-        const o = sim.d[j];
-        if (o.L !== 'g' || Math.abs(o.z - fz) > 3) continue;
-        if (S.mode === 'topple' ? o.st !== 0 : !(o.st === 0 || o.st === 1 || o.st === 3)) continue;
-        const P = domPoly(o);
-        if (closestOnPoly(cx, cy, P)[2] > cr && !pointInPoly(cx, cy, P)) continue;
-        const dot = hx * Math.cos(o.a) + hy * Math.sin(o.a), sg = dot >= 0 ? 1 : -1;
-        if (S.mode === 'topple') topple(sim, j, sg, 4);
-        else {
-          if (o.st === 0) { o.s = sg; o.fellAt = sim.t; }
-          o.st = 2; o.ph = Math.PI / 2; o.om = 0; o.squashed = true;
-          sim.events.push({ t: sim.t, type: 'squash', i: j });
-        }
-      }
-      // marbles and rolls on the floor get shoved
-      for (const r of sim.rollers) {
-        const dx = r.x - cx, dy = r.y - cy, d = Math.hypot(dx, dy);
-        if (d >= cr + r.r || r.z - r.r - fz > 4) continue;
-        const nx = d > 0.01 ? dx / d : hx, ny = d > 0.01 ? dy / d : hy;
-        r.x = cx + nx * (cr + r.r + 0.2); r.y = cy + ny * (cr + r.r + 0.2);
-        const sp = Math.max(Math.hypot(r.vx, r.vy), S.mode === 'topple' ? 70 : 50);
-        r.vx = nx * sp + hx * a.speed; r.vy = ny * sp + hy * a.speed; r.moving = true;
-      }
-      // gadgets: the roomba bumps them off and turns around; the baby stops to play
-      for (const g of sim.gad) {
-        if (g.L !== 'g' || g.bumpedBy === a) continue;
-        const P = gadgetPoly(g);
-        if (closestOnPoly(cx, cy, P)[2] > cr && !pointInPoly(cx, cy, P)) continue;
-        g.bumpedBy = a; fireGadget(sim, g);
-        sim.events.push({ t: sim.t, type: 'bump', k: a.k });
-        if (S.mode === 'topple') { a.dir = -a.dir; a.s += a.dir * 3; } else a.sitting = true;
-      }
-    }
-  }
-}
-// The cat naps on its bed and pounces on a marble rolling along the floor within reach.
-function stepCat(sim) {
-  const c = sim.cat; if (!c) return false;
-  if (c.st === 'sleep') {
-    for (const r of sim.rollers) {
-      if (!r.moving || r.caught) continue;
-      if (r.z - r.r - floorAt(sim.W, r.x, r.y) > 6) continue; // flying over is fine
-      if (Math.hypot(r.x - c.bx, r.y - c.by) > CAT.pounceR) continue;
-      c.st = 'leap'; c.t0 = sim.t; c.ball = r; c.fx = c.x; c.fy = c.y;
-      sim.events.push({ t: sim.t, type: 'pounce' });
-      break;
-    }
-    return false;
-  }
-  if (c.st === 'leap') {
-    const f = Math.min(1, (sim.t - c.t0) / CAT.leap), r = c.ball;
-    c.x = c.fx + (r.x - c.fx) * f; c.y = c.fy + (r.y - c.fy) * f; c.a = Math.atan2(r.y - c.fy, r.x - c.fx);
-    if (f >= 1) { r.moving = false; r.vx = r.vy = r.vz = 0; r.caught = true; c.st = 'sit'; sim.events.push({ t: sim.t, type: 'caught' }); }
-    return true;
-  }
-  return false;
-}
 function makeSim(W, doms, props, gadgets) {
   const sim = {
     W, t: 0,
@@ -955,9 +774,6 @@ function makeSim(W, doms, props, gadgets) {
     hits: [], hitSet: new Set(), quiet: 0, events: [],
   };
   sim.idx = new DomIndex(sim.d);
-  sim.agents = (W.agents || []).map(A => { const info = pathInfo(A), [x, y, a] = poseAlong(info, 0, !!A.loop); return { ...A, info, speed: A.speed || AGENTS[A.k].speed, s: 0, dir: 1, sitting: false, x, y, a }; });
-  sim.agentsUntil = Math.max(0, ...(W.agents || []).map(agentUntil));
-  sim.cat = W.cat ? { bx: W.cat.bed[0], by: W.cat.bed[1], x: W.cat.bed[0], y: W.cat.bed[1], a: 0, st: 'sleep' } : null;
   return sim;
 }
 function startRun(sim) {
@@ -1169,7 +985,6 @@ function stepBall(sim, r, dt) {
 }
 function stepSim(sim, dt) {
   sim.t += dt;
-  if (sim.agents.length) stepAgents(sim, dt);
   const D = sim.d;
   let active = false;
   const k = 3 * GRAV / (2 * DH);
@@ -1201,16 +1016,10 @@ function stepSim(sim, dt) {
     }
   }
   if (stepGadgets(sim)) active = true;
-  if (stepCat(sim)) active = true;
   for (const r of sim.rollers) { if (!r.moving) continue; active = true; stepBall(sim, r, dt); }
   sim.quiet = active ? 0 : sim.quiet + dt;
 }
-// Done when everything has settled and either every target is hit or the household has had its say.
-function simDone(sim) {
-  if (sim.t > 45) return true;
-  if (sim.quiet <= 0.35) return false;
-  return sim.t >= sim.agentsUntil || (sim.W.targets.length > 0 && sim.hits.length >= sim.W.targets.length);
-}
+function simDone(sim) { return sim.quiet > 0.35 || sim.t > 45; }
 function runToEnd(sim, dt = 1 / 480) { while (!simDone(sim)) stepSim(sim, dt); return sim; }
 
 // Where a gadget's marble will go, ignoring dominoes: a list of [x, y, z] points.
@@ -1335,7 +1144,7 @@ function makeStroke(W, doms, base, smart, onPlace, layer, gadgets, props) {
 (() => {
 'use strict';
 const PAL = ['#e5483f', '#f08a2c', '#f2c230', '#3fae6a', '#3a7bd5', '#8a56c9'];
-const SUCCESS = { bedroom: 'Good morning!', living: 'Lights out.', kitchen: 'Breakfast is served.', bathroom: 'Duck overboard!', hallway: 'Ding-dong!', study: 'Trophy toppled!', nursery: 'Sweet dreams.', den: 'Showtime!', sunroom: 'Plants watered.' };
+const SUCCESS = { bedroom: 'Good morning!', living: 'Lights out.', kitchen: 'Breakfast is served.', bathroom: 'Duck overboard!', hallway: 'Ding-dong!', study: 'Trophy toppled!' };
 const SANDBOX_ID = 'house';
 const ALL_ROOMS = ['bedroom', 'hallway', 'bathroom', 'living', 'kitchen', 'study'];
 const $ = id => document.getElementById(id);
@@ -1347,7 +1156,7 @@ function loadSave() {
   try { s = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { s = null; }
   s = s || {};
   s.stars = s.stars || {}; s.best = s.best || {}; s.layouts = s.layouts || {};
-  s.settings = Object.assign({ spacing: 5.6, smart: true, shaky: false, slow: false, catAll: false }, s.settings || {});
+  s.settings = Object.assign({ spacing: 5.6, smart: true, shaky: false, slow: false }, s.settings || {});
   return s;
 }
 const SAVE = loadSave();
@@ -1382,8 +1191,6 @@ const FLOOR = {
   carpet: { base: '#93a48c', line: 'rgba(40,60,40,.10)' },
   tile: { base: '#e7e1d3', line: 'rgba(60,50,30,.12)' },
   bath: { base: '#cfe2e7', line: 'rgba(30,70,90,.16)' },
-  lavender: { base: '#b9aed3', line: 'rgba(60,40,90,.10)' },
-  terracotta: { base: '#d39a74', line: 'rgba(110,50,20,.18)' },
 };
 
 function drawFloor(c, room, s) {
@@ -1401,13 +1208,13 @@ function drawFloor(c, room, s) {
         for (let x = x0 + ((row * 53) % 120); x < x0 + w; x += 120) { c.moveTo(x, y); c.lineTo(x, y + bw); }
       }
     }
-  } else if (room.floor === 'tile' || room.floor === 'bath' || room.floor === 'terracotta') {
+  } else if (room.floor === 'tile' || room.floor === 'bath') {
     const g = room.floor === 'tile' ? 30 : 15;
     if (g * s > 4) {
       for (let x = x0; x < x0 + w; x += g) { c.moveTo(x, y0); c.lineTo(x, y0 + h); }
       for (let y = y0; y < y0 + h; y += g) { c.moveTo(x0, y); c.lineTo(x0 + w, y); }
     }
-  } else if (room.floor === 'carpet' || room.floor === 'lavender') {
+  } else if (room.floor === 'carpet') {
     if (s > 1.2) for (let k = -h; k < w; k += 9) { c.moveTo(x0 + k, y0); c.lineTo(x0 + k + h, y0 + h); }
   }
   c.stroke(); c.restore();
@@ -1563,12 +1370,6 @@ function drawStairs(c, st, s) {
 }
 
 function drawNoPlace(c, n, s) {
-  if (n.cat) { // a round cat bed
-    const cx = n.x + n.w / 2, cy = n.y + n.h / 2;
-    c.fillStyle = '#8f6b9e'; c.beginPath(); c.arc(cx, cy, n.w / 2, 0, 7); c.fill();
-    c.fillStyle = '#d9c6e3'; c.beginPath(); c.arc(cx, cy, n.w / 2 - 4, 0, 7); c.fill();
-    return;
-  }
   c.fillStyle = '#7fb0a5'; rr(c, n.x, n.y, n.w, n.h, 6); c.fill();
   c.save(); rr(c, n.x, n.y, n.w, n.h, 6); c.clip();
   c.strokeStyle = 'rgba(255,255,255,.28)'; c.lineWidth = 1.6; c.beginPath();
@@ -1585,12 +1386,6 @@ function drawDecor(c, d) {
     c.fillStyle = '#b35a4a'; rr(c, d.x, d.y, d.w, d.h, 4); c.fill();
     c.strokeStyle = '#e7c48f'; c.lineWidth = 2.5; rr(c, d.x + 7, d.y + 7, d.w - 14, d.h - 14, 3); c.stroke();
     c.fillStyle = 'rgba(231,196,143,.5)'; c.beginPath(); c.ellipse(d.x + d.w / 2, d.y + d.h / 2, d.w / 5, d.h / 5, 0, 0, 7); c.fill();
-  } else if (d.k === 'playmat') {
-    const cols = ['#e5483f', '#f2c230', '#3fae6a', '#3a7bd5'], n = 3, cw = d.w / n, ch = d.h / 2;
-    for (let i = 0; i < n; i++) for (let j = 0; j < 2; j++) { c.fillStyle = cols[(i + j * 2) % 4]; c.fillRect(d.x + i * cw, d.y + j * ch, cw, ch); }
-  } else if (d.k === 'dock') {
-    c.fillStyle = '#2b2f38'; rr(c, d.x, d.y, d.w, d.h, 2); c.fill();
-    c.fillStyle = '#4cc38a'; c.beginPath(); c.arc(d.x + d.w / 2, d.y + d.h / 2, 1.6, 0, 7); c.fill();
   } else if (d.k === 'runner') {
     c.fillStyle = '#3f5f8a'; rr(c, d.x, d.y, d.w, d.h, 3); c.fill();
     c.strokeStyle = 'rgba(240,220,170,.6)'; c.lineWidth = 1.5; rr(c, d.x + 5, d.y + 5, d.w - 10, d.h - 10, 2); c.stroke();
@@ -1626,20 +1421,6 @@ function drawTarget(c, t, hit, s, time, idx, ordered, hitTime) {
     case 'trophy':
       c.fillStyle = '#d9a93a'; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
       c.fillStyle = '#f3d58a'; c.beginPath(); c.arc(x - r * .3, y - r * .3, r * .35, 0, 7); c.fill(); break;
-    case 'musicbox':
-      c.fillStyle = '#c96f8a'; rr(c, x - r, y - r * .8, r * 2, r * 1.6, 1.5); c.fill();
-      c.fillStyle = '#f3d58a'; c.beginPath(); c.arc(x, y, r * .35, 0, 7); c.fill(); break;
-    case 'popcorn':
-      c.fillStyle = '#d6453d'; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
-      c.fillStyle = '#fbf3d8'; c.beginPath(); c.arc(x, y, r * .7, 0, 7); c.fill(); break;
-    case 'button':
-      c.fillStyle = '#23262e'; rr(c, x - r, y - r * .7, r * 2, r * 1.4, 2); c.fill();
-      c.fillStyle = '#4cc38a'; c.beginPath(); c.arc(x, y, r * .35, 0, 7); c.fill(); break;
-    case 'watering':
-      c.fillStyle = '#3fae6a'; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
-      c.strokeStyle = '#2b7a49'; c.lineWidth = 1.4; c.beginPath(); c.moveTo(x + r * .6, y - r * .3); c.lineTo(x + r * 1.6, y - r * 1.1); c.stroke(); break;
-    case 'windchime':
-      c.fillStyle = '#c4cad3'; for (const [dx, dy] of [[-.5, -.4], [.5, -.3], [0, .5]]) { c.beginPath(); c.arc(x + dx * r, y + dy * r, r * .35, 0, 7); c.fill(); } break;
     case 'duck':
       c.fillStyle = '#f5d02f'; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
       c.beginPath(); c.arc(x + r * .5, y - r * .45, r * .55, 0, 7); c.fill();
@@ -1709,18 +1490,6 @@ function drawDomino(c, d, s, opts) {
   c.restore();
 }
 
-// Household agents on the plan: route as a dashed line, plus a marker where each starts
-function drawHousehold(c, W, s) {
-  for (const A of W.agents || []) {
-    const pts = A.loop ? [...A.path, A.path[0]] : A.path;
-    c.strokeStyle = A.k === 'baby' ? 'rgba(229,72,63,.75)' : 'rgba(58,123,213,.8)'; c.lineWidth = 2.2; c.setLineDash([4, 3]);
-    c.beginPath(); pts.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.stroke(); c.setLineDash([]);
-    const [x, y] = A.path[0];
-    if (A.k === 'roomba') { c.fillStyle = '#2b2f38'; c.beginPath(); c.arc(x, y, 17, 0, 7); c.fill(); c.fillStyle = '#4cc38a'; c.beginPath(); c.arc(x, y, 2.5, 0, 7); c.fill(); }
-    else { c.fillStyle = '#9cc3e6'; c.beginPath(); c.ellipse(x, y, 9, 12, 0, 0, 7); c.fill(); c.fillStyle = '#f2c9a0'; c.beginPath(); c.arc(x, y - 13, 7, 0, 7); c.fill(); }
-  }
-  if (W.cat) { const [x, y] = W.cat.bed; c.fillStyle = '#e08a3c'; c.beginPath(); c.ellipse(x, y, 9, 7, .4, 0, 7); c.fill(); c.beginPath(); c.arc(x + 6, y - 5, 4.5, 0, 7); c.fill(); }
-}
 function drawScene(c, W, view, o) {
   c.setTransform(DPR, 0, 0, DPR, 0, 0);
   c.fillStyle = '#161a24'; c.fillRect(0, 0, view.cw, view.ch);
@@ -1739,7 +1508,6 @@ function drawScene(c, W, view, o) {
   const hits = o.hits || [];
   W.targets.forEach((t, i) => { const h = hits.find(x => x.id === t.id); drawTarget(c, t, !!h, s, o.time || 0, i, W.ordered, o.showTimes && h ? h.t : null); });
   for (const p of o.props) drawProp(c, p, s, o.arrows, o.selProp === p);
-  drawHousehold(c, W, s);
   const D = o.doms;
   for (let i = 0; i < D.length; i++) if (!(D[i].st > 0)) drawDomino(c, D[i], s, { sel: o.sel && o.sel.has(i), bad: o.bad && o.sel && o.sel.has(i) });
   for (let i = 0; i < D.length; i++) if (D[i].st > 0) drawDomino(c, D[i], s);
@@ -1787,15 +1555,6 @@ function canvasTex(key, w, h, draw) {
 }
 // floor textures: one tile of the pattern; `per` is its size in cm
 const FLOORTEX = {
-  lavender: { per: 40, draw: (c, w, h) => {
-    c.fillStyle = '#b9aed3'; c.fillRect(0, 0, w, h);
-    for (let i = 0; i < 2600; i++) { c.fillStyle = Math.random() < .5 ? 'rgba(255,255,255,.08)' : 'rgba(60,40,90,.07)'; c.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
-  } },
-  terracotta: { per: 50, draw: (c, w, h) => {
-    const cols = ['#d39a74', '#c98d66', '#d9a37e', '#cc9269'];
-    for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) { c.fillStyle = cols[i * 2 + j]; c.fillRect(i * w / 2, j * h / 2, w / 2, h / 2); }
-    c.strokeStyle = 'rgba(240,225,200,.8)'; c.lineWidth = 5; for (let k = 0; k <= 2; k++) { c.beginPath(); c.moveTo(k * w / 2, 0); c.lineTo(k * w / 2, h); c.moveTo(0, k * h / 2); c.lineTo(w, k * h / 2); c.stroke(); }
-  } },
   wood: { per: 120, draw: (c, w, h) => {
     c.fillStyle = '#c9a273'; c.fillRect(0, 0, w, h);
     const rows = 9, rh = h / rows;
@@ -1840,10 +1599,6 @@ function rugTex(kind) {
       c.fillStyle = '#3f5f8a'; c.fillRect(0, 0, w, h);
       c.strokeStyle = 'rgba(240,220,170,.7)'; c.lineWidth = 8; c.strokeRect(18, 18, w - 36, h - 36);
       c.fillStyle = 'rgba(240,220,170,.35)'; for (let y = 50; y < h - 40; y += 40) { c.beginPath(); c.moveTo(w / 2, y); c.lineTo(w / 2 + 22, y + 18); c.lineTo(w / 2, y + 36); c.lineTo(w / 2 - 22, y + 18); c.fill(); }
-    } else if (kind === 'playmat') {
-      const cols = ['#e5483f', '#f2c230', '#3fae6a', '#3a7bd5'];
-      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { c.fillStyle = cols[(i + j) % 4]; c.fillRect(i * w / 4, j * h / 4, w / 4, h / 4); }
-      c.strokeStyle = 'rgba(255,255,255,.5)'; c.lineWidth = 3; for (let k = 1; k < 4; k++) { c.beginPath(); c.moveTo(k * w / 4, 0); c.lineTo(k * w / 4, h); c.moveTo(0, k * h / 4); c.lineTo(w, k * h / 4); c.stroke(); }
     } else { // bath mat
       c.fillStyle = '#7fb0a5'; c.fillRect(0, 0, w, h);
       c.strokeStyle = 'rgba(255,255,255,.3)'; c.lineWidth = 6;
@@ -2009,38 +1764,6 @@ function buildFurniture(g, f, W) {
       box(g, w, 44, h, cx, e + 22, cz, wood);
       for (let k = 0; k < 3; k++) box(g, w - 8, 4, 12, cx, e + 6, y + 14 + k * 20, mat('#2b2f38'));
       break;
-    case 'crib': {
-      const white = mat('#f3efe8', { roughness: .5 });
-      box(g, w, 6, h, cx, e + 40, cz, white); // mattress base
-      box(g, w - 6, 8, h - 6, cx, e + 47, cz, mat('#e7eef7', { roughness: .9 }));
-      for (const [a, b] of [[x + 2, y + 2], [x + w - 2, y + 2], [x + 2, y + h - 2], [x + w - 2, y + h - 2]]) box(g, 4, f.top, 4, a, e + f.top / 2, b, white);
-      for (const zz of [y + 1, y + h - 1]) { box(g, w, 3, 2, cx, e + f.top - 1.5, zz, white); for (let k = x + 10; k < x + w - 6; k += 9) box(g, 1.6, f.top - 46, 1.6, k, e + 44 + (f.top - 46) / 2, zz, white); }
-      for (const xx of [x + 1, x + w - 1]) { box(g, 2, 3, h, xx, e + f.top - 1.5, cz, white); for (let k = y + 9; k < y + h - 6; k += 9) box(g, 1.6, f.top - 46, 1.6, xx, e + 44 + (f.top - 46) / 2, k, white); }
-      // a mobile over the crib
-      cyl(g, .5, .5, 40, x + w - 8, e + f.top + 20, cz, mat('#c8ced4', { metalness: .6 }), 6);
-      const arm = new T3.Group(); arm.position.set(x + w / 2, e + f.top + 38, cz); g.add(arm);
-      box(arm, w * .55, .8, .8, -w * .05, 0, 0, mat('#c8ced4', { metalness: .6 }));
-      ['#f2c230', '#e5483f', '#3a7bd5', '#3fae6a'].forEach((col, i) => { const st = new T3.Mesh(new T3.OctahedronGeometry(3.2), mat(col, { roughness: .6 })); const a = i / 4 * Math.PI * 2; st.position.set(Math.cos(a) * 12, -10, Math.sin(a) * 12); arm.add(st); });
-      R.mobile = arm;
-      return;
-    }
-    case 'plantstand': {
-      box(g, w, 3, h, cx, e + f.top - 1.5, cz, mat('#6b4a30', { roughness: .5 }));
-      for (const [a, b] of [[x + 4, y + 4], [x + w - 4, y + 4], [x + 4, y + h - 4], [x + w - 4, y + h - 4]]) box(g, 3, f.top - 3, 3, a, e + (f.top - 3) / 2, b, mat('#6b4a30'));
-      box(g, w - 6, 2, h - 6, cx, e + 18, cz, mat('#6b4a30'));
-      cyl(g, 9, 7, 14, x + 14, e + f.top + 7, y + h - 14, mat('#b5653f'));
-      const leaves = new T3.Mesh(new T3.IcosahedronGeometry(13, 1), mat('#4f8a40', { flatShading: true, roughness: .9 })); leaves.position.set(x + 14, e + f.top + 24, y + h - 14); leaves.castShadow = true; g.add(leaves);
-      return;
-    }
-    case 'cattree': {
-      const sis = mat('#c9b48f', { roughness: 1 }), plush = mat('#8f6b9e', { roughness: 1 });
-      box(g, w, 4, h, cx, e + 2, cz, plush);
-      cyl(g, 4, 4, f.top - 6, cx - 8, e + 4 + (f.top - 6) / 2, cz - 6, sis, 12);
-      cyl(g, 4, 4, 60, cx + 10, e + 34, cz + 8, sis, 12);
-      box(g, 30, 3, 30, cx + 8, e + 64, cz + 6, plush);
-      cyl(g, 15, 15, 4, cx - 6, e + f.top - 2, cz - 4, plush, 20);
-      return;
-    }
     case 'shelfstep': {
       // one step of a stepped bookcase; book spines face the open (+x) side
       const tex = canvasTex('books', 512, 128, (c, w, h) => {
@@ -2102,39 +1825,6 @@ function buildTarget(g, t, W) {
       box(body, 2.6, 1.4, 8, 0, .7, 0, flash('#23262e', { roughness: .4 }));
       box(body, 1, .4, 1, 0, 1.5, -2.5, mat('#ef6a5a'));
       break;
-    case 'musicbox': {
-      box(body, 10, 6, 8, 0, 3, 0, flash('#c96f8a', { roughness: .4 }));
-      box(body, 10.4, 1.2, 8.4, 0, 6.6, 0, mat('#f3d58a', { metalness: .5, roughness: .3 }));
-      const dancer = new T3.Mesh(new T3.ConeGeometry(1.6, 4, 10), mat('#f6f0ff', { roughness: .4 })); dancer.position.y = 9.2; body.add(dancer);
-      o.spinner = dancer; break;
-    }
-    case 'popcorn': {
-      const bowl = new T3.Mesh(new T3.CylinderGeometry(6.5, 4, 5, 20, 1, true), flash('#d6453d', { roughness: .5, side: T3.DoubleSide })); bowl.position.y = 2.5; bowl.castShadow = true; body.add(bowl);
-      for (let i = 0; i < 16; i++) { const k = new T3.Mesh(new T3.IcosahedronGeometry(1.4, 0), mat('#fbf3d8', { roughness: .8 })); const a = i * 2.4, rr2 = (i % 4) * 1.4; k.position.set(Math.cos(a) * rr2, 4.6 + (i % 3) * .7, Math.sin(a) * rr2); body.add(k); }
-      o.tips = true; o.tipBack = 5; break;
-    }
-    case 'button': {
-      box(body, 14, 4, 9, 0, 2, 0, mat('#23262e', { roughness: .3 }));
-      const led = new T3.MeshStandardMaterial({ color: lin('#1e3b2c'), emissive: lin('#4cc38a'), emissiveIntensity: 0, roughness: .3 });
-      const btn = new T3.Mesh(new T3.CylinderGeometry(2.2, 2.2, 1.6, 16), led); btn.position.set(3, 4.6, 0); body.add(btn);
-      o.flashMats.push(led); o.press = null; o.glow = led; break;
-    }
-    case 'watering': {
-      const green = flash('#3fae6a', { roughness: .4, metalness: .2 });
-      cyl(body, 5, 5.5, 11, 0, 5.5, 0, green, 18);
-      const spout = new T3.Mesh(new T3.CylinderGeometry(.9, 1.6, 12, 8), green); spout.position.set(7, 9, 0); spout.rotation.z = -1; body.add(spout);
-      const hdl = new T3.Mesh(new T3.TorusGeometry(4, .7, 6, 14, Math.PI), green); hdl.position.set(-1, 11, 0); body.add(hdl);
-      o.tips = true; o.tipBack = 5; break;
-    }
-    case 'windchime': {
-      box(body, 3, 2, 3, 0, 15, 0, mat('#6b4a30'));
-      cyl(body, .3, .3, 4, 0, 13, 0, mat('#c8ced4'), 6);
-      const ring = new T3.Group(); ring.position.y = 10.5; body.add(ring);
-      for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; cyl(ring, .5, .5, 6 + i, Math.cos(a) * 2.6, -(6 + i) / 2, Math.sin(a) * 2.6, flash('#c4cad3', { metalness: .9, roughness: .2 }), 8); }
-      cyl(body, 3.5, 3.5, 1.2, 0, .6, 0, mat('#6b4a30'), 16);
-      cyl(body, .5, .5, 14, 0, 7.5, 0, mat('#6b4a30'), 6);
-      o.wobble = ring; break;
-    }
     case 'trophy': {
       const gold = flash('#d9a93a', { metalness: .85, roughness: .25 });
       box(body, 7, 3, 7, 0, 1.5, 0, mat('#3a2a1c', { roughness: .5 }));
@@ -2208,22 +1898,8 @@ function buildRoom3D(W) {
     m.userData.layer = 'g'; R.pick.push(m);
   }
   // decor & bath mat
-  for (const d of W.decor) {
-    const e = floorAt(W, d.x + d.w / 2, d.y + d.h / 2);
-    if (d.k === 'dock') {
-      box(g, d.w, 9, d.h, d.x + d.w / 2, e + 4.5, d.y + d.h / 2, mat('#2b2f38', { roughness: .4 }));
-      const led = new T3.Mesh(new T3.SphereGeometry(1, 10, 8), new T3.MeshBasicMaterial({ color: lin('#4cc38a') })); led.position.set(d.x + d.w, e + 7, d.y + d.h / 2); g.add(led);
-      continue;
-    }
-    const m = new T3.MeshStandardMaterial({ map: rugTex(d.k), roughness: 1 }); const mm = box(g, d.w, .8, d.h, d.x + d.w / 2, e + .4, d.y + d.h / 2, m, false); mm.userData.layer = 'g'; R.pick.push(mm);
-  }
-  for (const n of W.noPlace) {
-    if (n.cat) {
-      const cx = n.x + n.w / 2, cy = n.y + n.h / 2, e = floorAt(W, cx, cy);
-      const rim = new T3.Mesh(new T3.TorusGeometry(n.w / 2 - 3, 3.2, 10, 28), mat('#8f6b9e', { roughness: .95 })); rim.rotation.x = Math.PI / 2; rim.position.set(cx, e + 3, cy); rim.castShadow = true; g.add(rim);
-      const cush = cyl(g, n.w / 2 - 3, n.w / 2 - 3, 2.4, cx, e + 1.2, cy, mat('#d9c6e3', { roughness: 1 }), 24); cush.userData.layer = 'g'; R.pick.push(cush);
-      continue;
-    } const e = floorAt(W, n.x + n.w / 2, n.y + n.h / 2); const m = new T3.MeshStandardMaterial({ map: rugTex('mat'), roughness: 1 }); const mm = box(g, n.w, 1.4, n.h, n.x + n.w / 2, e + .7, n.y + n.h / 2, m, false); mm.userData.layer = 'g'; R.pick.push(mm); }
+  for (const d of W.decor) { const e = floorAt(W, d.x + d.w / 2, d.y + d.h / 2); const m = new T3.MeshStandardMaterial({ map: rugTex(d.k), roughness: 1 }); const mm = box(g, d.w, .8, d.h, d.x + d.w / 2, e + .4, d.y + d.h / 2, m, false); mm.userData.layer = 'g'; R.pick.push(mm); }
+  for (const n of W.noPlace) { const e = floorAt(W, n.x + n.w / 2, n.y + n.h / 2); const m = new T3.MeshStandardMaterial({ map: rugTex('mat'), roughness: 1 }); const mm = box(g, n.w, 1.4, n.h, n.x + n.w / 2, e + .7, n.y + n.h / 2, m, false); mm.userData.layer = 'g'; R.pick.push(mm); }
   // walls: chunked so height follows the floor on each side
   const wallM = mat('#2b303d', { roughness: .9 }), capM = mat('#454c61', { roughness: .8 });
   const WALL_H = 34;
@@ -2279,7 +1955,6 @@ function buildRoom3D(W) {
     const el = document.createElement('div'); el.className = 'tlabel';
     host.append(el); o.label = el;
   }
-  buildHousehold3D(W);
 }
 function buildProps3D() {
   for (const a of R.arrows) R.group.remove(a.obj);
@@ -2442,309 +2117,6 @@ function syncGadgets(playing) {
     animateGadget(o, gd, sg, t);
   });
 }
-// ---------- household: roomba, baby, cat ----------
-function numTex(n) {
-  return canvasTex('num-' + n, 64, 64, (c, w, h) => {
-    c.fillStyle = 'rgba(22,26,36,.85)'; c.beginPath(); c.arc(w / 2, h / 2, w / 2 - 2, 0, 7); c.fill();
-    c.fillStyle = '#f3ede1'; c.font = '700 30px Figtree, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(n + 's', w / 2, h / 2 + 1);
-  });
-}
-function pawTex() {
-  return canvasTex('paw', 64, 64, (c, w, h) => {
-    c.fillStyle = 'rgba(120,60,20,.75)';
-    c.beginPath(); c.ellipse(32, 40, 13, 11, 0, 0, 7); c.fill();
-    for (const [x, y] of [[16, 22], [27, 14], [38, 14], [49, 22]]) { c.beginPath(); c.ellipse(x, y, 5, 6, 0, 0, 7); c.fill(); }
-  });
-}
-function buildRoomba() {
-  const grp = new T3.Group(), o = { grp, k: 'roomba' };
-  cyl(grp, 17, 17, 7, 0, 4.5, 0, mat('#2b2f38', { roughness: .35, metalness: .2 }), 36);
-  cyl(grp, 13, 13, .6, 0, 8.3, 0, mat('#3d434f', { roughness: .25, metalness: .4 }), 32);
-  const bump = new T3.Mesh(new T3.TorusGeometry(17, 1.4, 8, 30, Math.PI), mat('#5a6170', { roughness: .4 })); bump.rotation.set(Math.PI / 2, 0, -Math.PI / 2); bump.position.y = 4; grp.add(bump);
-  const led = new T3.Mesh(new T3.SphereGeometry(1.1, 10, 8), new T3.MeshBasicMaterial({ color: lin('#4cc38a') })); led.position.set(8, 8.6, 0); grp.add(led);
-  const brush = new T3.Group(); brush.position.set(11, 1.2, 10); grp.add(brush);
-  for (let i = 0; i < 3; i++) { const b = box(brush, 7, .4, .6, 3.5, 0, 0, mat('#e8dcc0'), false); b.parent.remove(b); const arm = new T3.Group(); arm.rotation.y = i * 2.1; arm.add(b); brush.add(arm); }
-  o.brush = brush; o.led = led;
-  return o;
-}
-function buildBaby() {
-  const grp = new T3.Group(), o = { grp, k: 'baby' };
-  const skin = mat('#f2c9a0', { roughness: .7 }), suit = mat('#9cc3e6', { roughness: .85 }), diaper = mat('#ffffff', { roughness: .9 });
-  const torso = new T3.Mesh(new T3.SphereGeometry(8, 18, 12), suit); torso.scale.set(1.35, .85, 1); torso.position.set(0, 13, 0); torso.castShadow = true; grp.add(torso);
-  const bum = new T3.Mesh(new T3.SphereGeometry(6.5, 16, 10), diaper); bum.position.set(-9, 13, 0); bum.castShadow = true; grp.add(bum);
-  const head = new T3.Group(); head.position.set(13, 19, 0); grp.add(head);
-  const hd = new T3.Mesh(new T3.SphereGeometry(7.2, 20, 14), skin); hd.castShadow = true; head.add(hd);
-  for (const zz of [-2.6, 2.6]) { const eye = new T3.Mesh(new T3.SphereGeometry(.8, 8, 6), mat('#2b2f38')); eye.position.set(6.4, 1, zz); head.add(eye); }
-  const tuft = new T3.Mesh(new T3.ConeGeometry(1.6, 4, 8), mat('#c98a3e')); tuft.position.set(0, 7.6, 0); tuft.rotation.z = -.3; head.add(tuft);
-  const limb = (x, z, len, m) => { const p = new T3.Group(); p.position.set(x, 13, z); const l = cyl(p, 2.4, 2.1, len, 0, -len / 2, 0, m, 10); l.castShadow = true; grp.add(p); return p; };
-  o.arms = [limb(7, 5.5, 12, suit), limb(7, -5.5, 12, suit)];
-  o.legs = [limb(-7, 5, 11, suit), limb(-7, -5, 11, suit)];
-  o.head = head;
-  return o;
-}
-function buildCat() {
-  const grp = new T3.Group(), o = { grp, k: 'cat' };
-  const fur = mat('#e08a3c', { roughness: .9 }), pale = mat('#f6dcc0', { roughness: .9 });
-  const body = new T3.Group(); grp.add(body);
-  const torso = new T3.Mesh(new T3.SphereGeometry(7, 18, 12), fur); torso.castShadow = true; body.add(torso);
-  const chest = new T3.Mesh(new T3.SphereGeometry(4.5, 12, 8), pale); chest.position.set(6, -1.5, 0); body.add(chest);
-  const head = new T3.Group(); grp.add(head);
-  const hd = new T3.Mesh(new T3.SphereGeometry(5, 16, 12), fur); hd.castShadow = true; head.add(hd);
-  const muzzle = new T3.Mesh(new T3.SphereGeometry(2.4, 10, 8), pale); muzzle.position.set(4, -1.2, 0); head.add(muzzle);
-  for (const zz of [-2.6, 2.6]) {
-    const ear = new T3.Mesh(new T3.ConeGeometry(1.9, 4, 4), fur); ear.position.set(-.4, 4.6, zz); ear.rotation.x = zz * .08; head.add(ear);
-    const eye = new T3.Mesh(new T3.SphereGeometry(.7, 8, 6), mat('#3f7a2f', { roughness: .2 })); eye.position.set(4.2, 1.2, zz * .75); head.add(eye);
-    o.eyes = (o.eyes || []).concat(eye);
-  }
-  const legs = [];
-  for (const [x, z] of [[6, 3], [6, -3], [-6, 3], [-6, -3]]) { const p = new T3.Group(); p.position.set(x, 0, z); cyl(p, 1.4, 1.2, 9, 0, -4.5, 0, fur, 8); grp.add(p); legs.push(p); }
-  const tail = []; let prev = grp;
-  for (let i = 0; i < 6; i++) { const seg = new T3.Group(); const m = new T3.Mesh(new T3.SphereGeometry(1.6 - i * .12, 8, 6), fur); seg.add(m); prev.add(seg); tail.push(seg); prev = seg; }
-  Object.assign(o, { body, torso, head, legs, tail });
-  return o;
-}
-// pose the cat: 'curl' (asleep), 'stand', 'walk', 'swat', 'sit'; ph = animation phase
-function poseCat(o, pose, ph) {
-  const curl = pose === 'curl', sit = pose === 'sit';
-  o.legs.forEach((l, i) => { l.visible = !curl; l.rotation.z = pose === 'walk' ? Math.sin(ph + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * .55 : 0; l.position.y = sit && i > 1 ? 4 : 9; });
-  if (pose === 'swat') { const l = o.legs[0]; l.rotation.z = -1.2 - Math.sin(ph) * .5; l.position.y = 12; }
-  if (curl) {
-    o.body.position.set(0, 5, 0); o.torso.scale.set(1.5, .75, 1.25);
-    o.head.position.set(7, 6.5, 4.5); o.head.rotation.set(0, -.7, .25);
-    o.eyes.forEach(e => e.scale.set(1, .15, 1));
-    o.tail[0].position.set(-9, -1, 0); o.tail.forEach((s, i) => { if (i) s.position.set(.6, 0, 2.6); s.rotation.y = i ? .45 : 1.2; });
-  } else {
-    o.eyes.forEach(e => e.scale.set(1, 1, 1));
-    o.body.position.set(0, sit ? 11 : 13, 0); o.torso.scale.set(sit ? 1.15 : 1.7, sit ? 1.15 : .9, 1);
-    o.body.rotation.z = sit ? .6 : 0;
-    o.head.position.set(sit ? 7 : 12, sit ? 24 : 19, 0); o.head.rotation.set(0, 0, 0);
-    o.tail[0].position.set(sit ? -6 : -11, sit ? 8 : 15, 0);
-    o.tail.forEach((s, i) => { if (i) s.position.set(-.4, 2.6, 0); s.rotation.set(0, 0, i ? (sit ? -.35 : .12) + Math.sin(ph * .5 + i) * .08 : (sit ? 1.9 : .5)); });
-  }
-}
-function buildHousehold3D(W) {
-  R.house = { agents: [], markers: new T3.Group(), cat: null, paws: new T3.Group() };
-  R.group.add(R.house.markers, R.house.paws);
-  const host = $('labels');
-  for (const A of W.agents) {
-    const o = A.k === 'roomba' ? buildRoomba() : buildBaby();
-    if (A.k === 'baby') o.grp.scale.setScalar(1.2);
-    o.grp.traverse(n => { if (n.isMesh) n.castShadow = true; });
-    R.group.add(o.grp);
-    // the route: a dashed line on the floor with a marker for every second
-    const col = A.k === 'baby' ? '#e5483f' : '#3a7bd5';
-    const pts = (A.loop ? [...A.path, A.path[0]] : A.path).map(([x, y]) => new T3.Vector3(x, floorAt(W, x, y) + .9, y));
-    const ln = new T3.Line(new T3.BufferGeometry().setFromPoints(pts), new T3.LineDashedMaterial({ color: lin(col), dashSize: 4, gapSize: 3, transparent: true, opacity: .9 }));
-    ln.computeLineDistances(); R.house.markers.add(ln);
-    const until = agentUntil(A), t0 = A.start || 0;
-    for (let t = Math.ceil(t0 + .01); t <= until + .01 && t - t0 < 24; t++) {
-      const [x, y] = agentPose(A, t), e = floorAt(W, x, y);
-      const showNum = t % 2 === 0 || until - t0 < 10;
-      const m = new T3.Mesh(new T3.PlaneGeometry(showNum ? 9 : 3, showNum ? 9 : 3), showNum ? new T3.MeshBasicMaterial({ map: numTex(t), transparent: true, depthWrite: false }) : new T3.MeshBasicMaterial({ color: lin(col) }));
-      m.rotation.x = -Math.PI / 2; m.position.set(x, e + 1, y); m.renderOrder = 3; R.house.markers.add(m);
-    }
-    const el = document.createElement('div'); el.className = 'tlabel agent';
-    el.textContent = A.k === 'baby' ? `Baby · crawls at ${t0} s` : `Robot vacuum · sets off at ${t0} s`;
-    host.append(el);
-    R.house.agents.push({ A, o, el, dist: 0, last: null });
-  }
-}
-function ensureCatMesh() {
-  if (R.house.cat || !G.catAI) return;
-  const o = buildCat(); o.grp.scale.setScalar(1.5); R.group.add(o.grp); R.house.cat = o;
-  const el = document.createElement('div'); el.className = 'tlabel agent cat'; el.textContent = 'Cat'; $('labels').append(el); o.el = el;
-}
-function placeLabel(el, x, y3, z, show) {
-  if (!show) { el.hidden = true; return; }
-  const [sx, sy, zz] = toScreen(x, y3, z);
-  el.hidden = !(zz < 1 && sx > -40 && sx < CW + 40 && sy > -20 && sy < CH + 20);
-  if (!el.hidden) el.style.transform = `translate(${sx.toFixed(1)}px, ${sy.toFixed(1)}px) translate(-50%, -100%)`;
-}
-function syncHousehold(playing, dt) {
-  if (!R.house) return;
-  R.house.markers.visible = !playing;
-  const sim = playing && G.sim && G.mode !== 'rewind' ? G.sim : null;
-  R.house.agents.forEach((h, i) => {
-    const sa = sim && sim.agents[i];
-    const [x, y, a] = sa ? [sa.x, sa.y, sa.a] : agentPose(h.A, 0);
-    const e = floorAt(G.W, x, y);
-    h.o.grp.position.set(x, e, y); h.o.grp.rotation.y = -a;
-    const moved = h.last ? Math.hypot(x - h.last[0], y - h.last[1]) : 0; h.last = [x, y]; h.dist += moved;
-    if (h.o.k === 'roomba') { if (moved > 0) h.o.brush.rotation.y += dt * 25; h.o.led.material.color.copy(lin(sa && G.sim.t >= (h.A.start || 0) ? '#6fd3ff' : '#4cc38a')); }
-    else {
-      const ph = h.dist * .45, sitting = sa && sa.sitting;
-      h.o.arms.forEach((l, k) => { l.rotation.z = sitting ? 0 : Math.sin(ph + k * Math.PI) * .5; });
-      h.o.legs.forEach((l, k) => { l.rotation.z = sitting ? 1.2 : Math.sin(ph + k * Math.PI + Math.PI) * .4; });
-      h.o.head.rotation.z = sitting ? .25 : Math.sin(ph * .5) * .05;
-    }
-    placeLabel(h.el, x, e + (h.o.k === 'baby' ? 34 : 18), y, !playing);
-  });
-  // the cat: asleep, pouncing or sitting during a run; up to mischief while you build
-  const C = G.catAI; if (!C) return;
-  ensureCatMesh(); const o = R.house.cat;
-  let x, y, a, pose, lift = 0;
-  if (sim && sim.cat) {
-    const c = sim.cat; x = c.x; y = c.y; a = c.a || 0;
-    if (c.st === 'sleep') pose = 'curl';
-    else if (c.st === 'leap') { pose = 'stand'; lift = Math.sin(Math.min(1, (sim.t - c.t0) / CAT.leap) * Math.PI) * 14; }
-    else pose = 'sit';
-  } else if (playing) { x = C.bed[0]; y = C.bed[1]; a = C.a; pose = 'curl'; }
-  else { x = C.x; y = C.y; a = C.a; pose = C.st === 'sleep' ? 'curl' : C.st === 'swat' ? 'swat' : C.st === 'groom' ? 'sit' : 'walk'; }
-  C.ph = (C.ph || 0) + dt * (pose === 'walk' ? (C.st === 'flee' ? 22 : 11) : 4);
-  poseCat(o, pose, C.ph);
-  const onBed = pose === 'curl' || (Math.hypot(x - C.bed[0], y - C.bed[1]) < 8);
-  o.grp.position.set(x, floorAt(G.W, x, y) + lift + (onBed && G.W.cat ? 2.4 : 0), y); o.grp.rotation.y = -a;
-  placeLabel(o.el, x, floorAt(G.W, x, y) + 30, y, !playing && C.st !== 'sleep');
-  if (!playing) o.el.textContent = C.st === 'flee' ? 'Cat · shoo!' : 'Cat · tap to shoo';
-  // paw prints where the cat has been at work
-  G.paws = (G.paws || []).filter(p => G.time - p.t < 14);
-  if (R.house.pawCount !== G.paws.length || G.paws.some(p => !p.mesh)) {
-    while (R.house.paws.children.length) R.house.paws.remove(R.house.paws.children[0]);
-    for (const p of G.paws) {
-      p.mesh = new T3.Mesh(new T3.PlaneGeometry(10, 10), new T3.MeshBasicMaterial({ map: pawTex(), transparent: true, depthWrite: false }));
-      p.mesh.rotation.x = -Math.PI / 2; p.mesh.rotation.z = p.a || 0; p.mesh.position.set(p.x, floorAt(G.W, p.x, p.y) + 1.1, p.y); p.mesh.renderOrder = 3; R.house.paws.add(p.mesh);
-    }
-    R.house.pawCount = G.paws.length;
-  }
-  for (const p of G.paws) p.mesh.material.opacity = Math.min(1, (14 - (G.time - p.t)) / 3);
-}
-
-// ---------- the cat's mischief while you build ----------
-function findCatSpot() {
-  for (const r of G.W.rooms) for (const [fx, fy] of [[.15, .85], [.85, .85], [.15, .15], [.85, .15], [.5, .5]]) {
-    const x = r.x + r.w * fx, y = r.y + r.h * fy;
-    if (!inRoomOrDoor(G.W, x, y) || stairAt(G.W, x, y)) continue;
-    if (staticsNear(G.W, x - 20, y - 20, x + 20, y + 20).some(s => closestOnPoly(x, y, s.poly)[2] < 18 || pointInPoly(x, y, s.poly))) continue;
-    if (G.props.some(p => Math.hypot(p.x - x, p.y - y) < 40)) continue;
-    return [x, y];
-  }
-  return null;
-}
-function initCat() {
-  G.paws = [];
-  const bed = G.W.cat ? G.W.cat.bed : (SAVE.settings.catAll ? findCatSpot() : null);
-  if (R.house && R.house.cat) { R.group.remove(R.house.cat.grp); R.house.cat.el.remove(); R.house.cat = null; }
-  G.catAI = bed ? { bed, x: bed[0], y: bed[1], a: -.6, st: 'sleep', timer: 12, path: null } : null;
-}
-function catGrid(z0) {
-  const W = G.W, cell = 8, [bx0, by0, bx1, by1] = W.bounds;
-  const nx = Math.ceil((bx1 - bx0) / cell), ny = Math.ceil((by1 - by0) / cell), ok = new Uint8Array(nx * ny);
-  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-    const x = bx0 + (i + .5) * cell, y = by0 + (j + .5) * cell;
-    if (!inRoomOrDoor(W, x, y) || Math.abs(floorAt(W, x, y) - z0) > 1) continue;
-    let free = true;
-    for (const s of staticsNear(W, x - 8, y - 8, x + 8, y + 8)) { if (s.z0 > z0 + 20) continue; if (pointInPoly(x, y, s.poly) || closestOnPoly(x, y, s.poly)[2] < 7) { free = false; break; } }
-    if (free) for (const g of G.gadgets) if (pointInPoly(x, y, gadgetPoly(g))) { free = false; break; }
-    if (free) ok[j * nx + i] = 1;
-  }
-  return { ok, nx, ny, cell, bx0, by0 };
-}
-function catPath(gr, from, to) {
-  const { ok, nx, ny, cell, bx0, by0 } = gr;
-  const idx = ([x, y]) => { let i = Math.floor((x - bx0) / cell), j = Math.floor((y - by0) / cell); i = Math.max(0, Math.min(nx - 1, i)); j = Math.max(0, Math.min(ny - 1, j)); return j * nx + i; };
-  const nearestFree = k => { if (ok[k]) return k; let best = -1, bd = 1e9; const ki = k % nx, kj = (k / nx) | 0; for (let dj = -4; dj <= 4; dj++) for (let di = -4; di <= 4; di++) { const i = ki + di, j = kj + dj; if (i < 0 || j < 0 || i >= nx || j >= ny || !ok[j * nx + i]) continue; const d = di * di + dj * dj; if (d < bd) { bd = d; best = j * nx + i; } } return best; };
-  const s = nearestFree(idx(from)), t = nearestFree(idx(to)); if (s < 0 || t < 0) return null;
-  const g = new Float32Array(nx * ny).fill(1e9), came = new Int32Array(nx * ny).fill(-1), open = [s]; g[s] = 0;
-  const h = k => Math.hypot((k % nx) - (t % nx), ((k / nx) | 0) - ((t / nx) | 0));
-  const closed = new Uint8Array(nx * ny);
-  while (open.length) {
-    let bi = 0; for (let i = 1; i < open.length; i++) if (g[open[i]] + h(open[i]) < g[open[bi]] + h(open[bi])) bi = i;
-    const k = open[bi]; open.splice(bi, 1);
-    if (k === t) break;
-    if (closed[k]) continue; closed[k] = 1;
-    const ki = k % nx, kj = (k / nx) | 0;
-    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
-      if (!di && !dj) continue; const i = ki + di, j = kj + dj; if (i < 0 || j < 0 || i >= nx || j >= ny) continue;
-      const n = j * nx + i; if (!ok[n] || closed[n]) continue;
-      if (di && dj && (!ok[kj * nx + i] || !ok[j * nx + ki])) continue;
-      const ng = g[k] + (di && dj ? 1.414 : 1);
-      if (ng < g[n]) { g[n] = ng; came[n] = k; open.push(n); }
-    }
-  }
-  if (came[t] < 0 && s !== t) return null;
-  const cells = []; for (let k = t; k !== -1; k = came[k]) { cells.push(k); if (k === s) break; }
-  cells.reverse();
-  const pts = cells.filter((_, i) => i % 2 === 0 || i === cells.length - 1).map(k => [bx0 + ((k % nx) + .5) * cell, by0 + (((k / nx) | 0) + .5) * cell]);
-  pts.push(to);
-  return pts;
-}
-function catWalk(C, path, speed, next) { C.path = path; C.pi = 0; C.speed = speed; C.next = next; C.st = next === 'sleep' ? (speed > 100 ? 'flee' : 'home') : 'walk'; }
-function updateCatAI(dt) {
-  const C = G.catAI; if (!C) return;
-  const z0 = floorAt(G.W, C.bed[0], C.bed[1]);
-  if (C.st === 'sleep') {
-    const floorDoms = G.layout.filter(d => d.L === 'g' && Math.abs(floorAt(G.W, d.x, d.y) - z0) < 1);
-    if (floorDoms.length >= 6) C.timer -= dt;
-    if (C.timer > 0) return;
-    // pick a domino in the middle of a line, then walk over to it
-    const mid = floorDoms.filter(d => G.layout.filter(o => o !== d && Math.hypot(o.x - d.x, o.y - d.y) < 8.5).length >= 2);
-    const pool = mid.length ? mid : floorDoms;
-    const gr = catGrid(z0);
-    for (let tries = 0; tries < 5; tries++) {
-      const d = pool[Math.floor(Math.random() * pool.length)];
-      const nx = -Math.sin(d.a), ny = Math.cos(d.a), side = (C.bed[0] - d.x) * nx + (C.bed[1] - d.y) * ny >= 0 ? 1 : -1;
-      const ap = [d.x + nx * side * 15, d.y + ny * side * 15];
-      const path = catPath(gr, [C.x, C.y], ap);
-      if (path) { C.target = d; C.side = side; catWalk(C, path, 55, 'swat'); return; }
-    }
-    C.timer = 8; return;
-  }
-  if (C.path) {
-    let step = C.speed * dt;
-    while (step > 0 && C.pi < C.path.length) {
-      const [tx, ty] = C.path[C.pi], dx = tx - C.x, dy = ty - C.y, L = Math.hypot(dx, dy);
-      if (L > .01) C.a = Math.atan2(dy, dx);
-      if (L <= step) { C.x = tx; C.y = ty; step -= L; C.pi++; } else { C.x += dx / L * step; C.y += dy / L * step; step = 0; }
-    }
-    if (C.pi >= C.path.length) {
-      C.path = null;
-      if (C.next === 'swat') { C.st = 'swat'; C.t = 0; C.done = false; if (C.target) C.a = Math.atan2(C.target.y - C.y, C.target.x - C.x); }
-      else { C.st = 'sleep'; C.timer = 25 + Math.random() * 20; C.x = C.bed[0]; C.y = C.bed[1]; }
-    }
-    return;
-  }
-  if (C.st === 'swat') {
-    C.t += dt;
-    if (!C.done && C.t > .35 && !pointers.size) { C.done = true; catSwat(C); }
-    if (C.t > .9) { C.st = 'groom'; C.t = 0; }
-    return;
-  }
-  if (C.st === 'groom') {
-    C.t += dt;
-    if (C.t > 1.6) { const path = catPath(catGrid(z0), [C.x, C.y], C.bed); if (path) catWalk(C, path, 45, 'sleep'); else { C.x = C.bed[0]; C.y = C.bed[1]; C.st = 'sleep'; C.timer = 30; } }
-  }
-}
-function catSwat(C) {
-  const i = G.layout.indexOf(C.target); C.target = null;
-  if (i < 0) return;
-  pushUndo();
-  const d = G.layout[i], nx = -Math.sin(d.a), ny = Math.cos(d.a), push = -C.side;
-  let moved = false;
-  if (Math.random() < .7) {
-    for (const k of [1, .6, .35]) {
-      const x = d.x + nx * push * (4 + Math.random() * 3) * k, y = d.y + ny * push * (4 + Math.random() * 3) * k, a = d.a + push * (.4 + Math.random() * .5) * k;
-      if (!placeProblem(G.W, G.layout, x, y, a, new Set([i]), G.props, d.L, G.gadgets)) { G.paws.push({ x: d.x, y: d.y, a: Math.random() * 6, t: G.time }); d.x = x; d.y = y; d.a = a; moved = true; break; }
-    }
-  }
-  if (!moved) { G.paws.push({ x: d.x, y: d.y, a: Math.random() * 6, t: G.time }); G.layout.splice(i, 1); }
-  changed();
-  toast(moved ? 'The cat batted a domino out of line.' : 'The cat swiped a domino under the furniture.');
-}
-function shooCat() {
-  const C = G.catAI; if (!C || C.st === 'sleep' || C.st === 'flee') return false;
-  const path = catPath(catGrid(floorAt(G.W, C.bed[0], C.bed[1])), [C.x, C.y], C.bed);
-  C.target = null;
-  if (path) catWalk(C, path, 150, 'sleep'); else { C.x = C.bed[0]; C.y = C.bed[1]; C.st = 'sleep'; C.path = null; }
-  C.timer = 35 + Math.random() * 15;
-  toast('Shoo!');
-  return true;
-}
-function catHit(sx, sy) {
-  const C = G.catAI; if (!C || C.st === 'sleep') return false;
-  const [px, py, z] = toScreen(C.x, floorAt(G.W, C.x, C.y) + 14, C.y);
-  return z < 1 && Math.hypot(px - sx, py - sy) < 36;
-}
-
 function ensureCap(n) {
   if (n <= R.cap) return;
   let cap = Math.max(256, R.cap); while (cap < n) cap *= 2;
@@ -2858,7 +2230,7 @@ function openRoom(id) {
   $('menu').hidden = true; $('game').hidden = false;
   $('t1').textContent = sandbox ? 'Whole house' : L.name;
   $('t2').textContent = sandbox ? 'Sandbox. No goal and no box limit. Every door is open.' : L.goal;
-  buildRoom3D(W); buildProps3D(); initCat();
+  buildRoom3D(W); buildProps3D();
   setTool('build');
   resize(); fitCamera(false);
   updateHud(); hideAllBars();
@@ -2982,13 +2354,11 @@ function updateTargets(hits, playing) {
     const h = hits && hits.find(x => x.id === o.t.id);
     const age = h && G.sim ? Math.max(0, G.sim.t - h.t) : (h ? 9 : 0);
     if (h && o.kind === 'switch') lampOff = true;
-    if (h && (o.kind === 'remote' || o.kind === 'button')) tvOn = true;
+    if (h && o.kind === 'remote') tvOn = true;
     // floor ring
     if (!h) { const p = (now * 1.2 + o.t.x * .01) % 1; o.ring.scale.setScalar(1 + p * .9); o.ringM.opacity = .85 * (1 - p); o.ringM.color.copy(lin('#f6b33c')); }
     else { o.ring.scale.setScalar(1); o.ringM.opacity = .9; o.ringM.color.copy(lin('#4cc38a')); }
     for (const m of o.flashMats) m.emissiveIntensity = h ? 0.9 * Math.exp(-age * 2.2) : 0;
-    if (o.glow) o.glow.emissiveIntensity = h ? 1 : 0;
-    if (o.spinner) o.spinner.rotation.y = h ? age * 6 : 0;
     if (o.wobble) o.wobble.rotation.z = (o.kind === 'chime' ? .25 : 0) + (h ? Math.sin(age * 38) * 0.35 * Math.exp(-age * 2.2) : 0);
     if (o.toggle) o.toggle.position.y = h ? 3.4 : 5.5;
     if (o.press) o.press.position.z = h && age < 0.6 ? 0.2 : 1.4;
@@ -3014,7 +2384,6 @@ function updateTargets(hits, playing) {
   }
   for (const L of R.lamps) { L.shadeM.emissiveIntensity = lampOff ? 0.02 : 0.9; L.light.intensity = lampOff ? 0 : 0.9; }
   for (const T of R.tvs) T.screenM.emissiveIntensity = tvOn ? 0.9 : 0;
-  if (R.mobile) R.mobile.rotation.y = now * .5; // the crib mobile turns gently
 }
 function updateHelpers(playing) {
   R.topOutlines.visible = !playing && (G.tool === 'build' || G.tool === 'gadget');
@@ -3052,8 +2421,6 @@ function frame(now) {
     const sim = playing && G.sim;
     syncBalls(sim ? (G.mode === 'rewind' ? G.sim.rollers.slice(0, G.props.length) : G.sim.rollers) : G.props, !!sim && G.mode !== 'rewind');
     syncGadgets(playing);
-    if (G.mode === 'edit') updateCatAI(dt);
-    syncHousehold(playing, dt);
     updateTargets(currentHits(), playing);
     updateHelpers(playing);
     $('stage').classList.toggle('ghost', G.mode === 'preview' || G.mode === 'rewind');
@@ -3139,11 +2506,6 @@ function evaluate() {
     if (!ok) why = `The ${ts[1].label.toLowerCase()} went off before the ${ts[0].label.toLowerCase()}. Make its line longer so it arrives later.`;
   }
   if (missing.length) why = `Still waiting on: ${missing.map(t => t.label.toLowerCase()).join(' and ')}.`;
-  if (!ok) {
-    const ev = k => G.sim.events.some(e => e.type === k);
-    if (ev('squash')) why += ' The baby flattened part of your line.';
-    if (ev('caught')) why += ' The cat caught a marble.';
-  }
   const used = G.layout.length, fell = G.sim.d.filter(d => d.st !== 0).length;
   const stars = ok ? 1 + (used <= L.par ? 1 : 0) + (fell === used ? 1 : 0) : 0;
   return { ok, why, used, fell, stars, t: hits.length ? Math.max(...hits.map(h => h.t)) : G.sim.t };
@@ -3234,7 +2596,6 @@ function localXY(e) { const r = cv.getBoundingClientRect(); return [e.clientX - 
 function onDown(e) {
   if (!G) return;
   if (G.mode !== 'edit') { if (G.mode === 'preview') stopPlayback(); return; }
-  { const r = cv.getBoundingClientRect(); if (catHit(e.clientX - r.left, e.clientY - r.top) && shooCat()) return; }
   cv.setPointerCapture(e.pointerId);
   const [sx, sy] = localXY(e);
   pointers.set(e.pointerId, [sx, sy]);
@@ -3569,7 +2930,7 @@ $('fitBtn').addEventListener('click', () => { fitCamera(true); });
 $('setBtn').addEventListener('click', () => {
   if (G.mode !== 'edit') return;
   $('spacing').value = SAVE.settings.spacing; spLabel();
-  $('smart').checked = SAVE.settings.smart; $('shaky').checked = SAVE.settings.shaky; $('slow').checked = SAVE.settings.slow; $('catAll').checked = SAVE.settings.catAll;
+  $('smart').checked = SAVE.settings.smart; $('shaky').checked = SAVE.settings.shaky; $('slow').checked = SAVE.settings.slow;
   $('clearBtn').textContent = 'Clear this room'; $('clearBtn').dataset.arm = '';
   $('settings').hidden = false;
 });
@@ -3578,7 +2939,6 @@ $('spacing').addEventListener('input', () => { SAVE.settings.spacing = +$('spaci
 $('smart').addEventListener('change', e => { SAVE.settings.smart = e.target.checked; persist(); });
 $('shaky').addEventListener('change', e => { SAVE.settings.shaky = e.target.checked; persist(); });
 $('slow').addEventListener('change', e => { SAVE.settings.slow = e.target.checked; persist(); });
-$('catAll').addEventListener('change', e => { SAVE.settings.catAll = e.target.checked; persist(); if (G && !G.W.cat) initCat(); });
 $('closeSet').addEventListener('click', () => { $('settings').hidden = true; });
 $('settings').addEventListener('click', e => { if (e.target === $('settings')) $('settings').hidden = true; });
 let clearTimer = 0;
@@ -3593,15 +2953,8 @@ $('clearBtn').addEventListener('click', () => {
 function renderMenu() {
   const host = $('rooms'); host.innerHTML = '';
   const items = [...LEVELS.map(l => l.id), SANDBOX_ID];
-  let headed = false;
   for (const id of items) {
     const sandbox = id === SANDBOX_ID, L = sandbox ? null : levelDef(id);
-    if (L && L.tier === 2 && !headed) {
-      headed = true;
-      const hd = document.createElement('div'); hd.className = 'tierhead';
-      hd.innerHTML = '<b>The household wakes up</b><span>A crawling baby, a robot vacuum and a cat with opinions. Their routes show on the floor with the time they get there.</span>';
-      host.append(hd);
-    }
     const b = document.createElement('button'); b.className = 'card' + (sandbox ? ' wide' : '');
     const c = document.createElement('canvas');
     const meta = document.createElement('div'); meta.className = 'meta';

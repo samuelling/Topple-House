@@ -4,11 +4,7 @@ function windowFor(id, g, target) {
   const W = E.buildWorld([id], false), ok = [];
   for (let p = 150; p <= 620; p += 10) {
     const sim = E.makeSim(W, [], [], [{ ...g, power: p }]);
-    sim.agents = []; sim.agentsUntil = 0; sim.cat = null; // just the throw
-    const S = E.GADGETS[g.k];
-    if (S.kind === 'tramp') sim.rollers.push({ k: 'marble', x: g.x, y: g.y, z: sim.gad[0].z + S.base + 30, r: 2.2, vx: 0, vy: 0, vz: -200, moving: true });
-    else E.fireGadget(sim, sim.gad[0]);
-    E.runToEnd(sim);
+    E.fireGadget(sim, sim.gad[0]); E.runToEnd(sim);
     if (sim.hits.find(h => h.id === target)) ok.push(p);
   }
   return ok;
