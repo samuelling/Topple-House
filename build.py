@@ -5,6 +5,7 @@ src/page.html  markup and styles, with /*__ENGINE__*/ and /*__UI3D__*/ slots
 src/engine.js  physics, rooms and gadgets (no DOM; also runs under Node for the tools)
 src/plan.js    2D floor-plan drawing used for the room thumbnails
 src/ui.js      three.js scene, touch controls and game flow (/*__PLAN__*/ slot)
+src/music.js   the soundtrack: synthesised 16-bit instruments and a swing sequencer
 """
 from pathlib import Path
 
@@ -15,7 +16,8 @@ page = (src / 'page.html').read_text()
 engine = (src / 'engine.js').read_text()
 engine = engine[:engine.index('// ===ENGINE END===')]
 ui = (src / 'ui.js').read_text().replace('/*__PLAN__*/', (src / 'plan.js').read_text())
-body = page.replace('/*__ENGINE__*/', engine).replace('/*__UI3D__*/', ui)
+music = (src / 'music.js').read_text()
+body = page.replace('/*__ENGINE__*/', engine).replace('/*__MUSIC__*/', music).replace('/*__UI3D__*/', ui)
 
 # Everything before the app markup (title, fonts, styles) belongs in <head>.
 split = body.index('<div id="app">')

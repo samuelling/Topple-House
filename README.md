@@ -32,12 +32,21 @@ Each room scores up to three dominoes: finish the job, use par or fewer, and mak
 - Camera: two fingers pinch to zoom, drag to pan and twist to rotate. One finger on the empty table orbits. The layers button cycles overhead, angled and low views. On a computer, right-drag orbits and scroll zooms.
 - Settings: domino spacing, smart spacing down the stairs, slow motion, and **Shaky hands** (off by default), where setting a domino down next to a standing one can knock the line over.
 
+## Music
+
+An original lo-fi chillhop soundtrack played through a 16-bit sound chip, in the spirit of late-90s French space pop: a warm analog-style bass, Rhodes chords, a gliding synth lead with vibrato, a chorused string-machine pad, a thin pulse arpeggio, a dusty boom-bap kit at 84 BPM with swing, vinyl crackle and a dark repeating echo.
+
+Every instrument is synthesised once at startup into a 22 kHz, bit-crushed sample (8–12 bits), the way SNES music was built from small samples, then a lookahead sequencer plays a 20-bar song (two sections plus a drumless breakdown) from them. The mix sounds muffled, like it's coming from the next room, while you build; the filter opens when a preview or run starts, and a short phrase plays when a run wins or misses.
+
+Music starts on your first tap (browsers block sound before that). The note button on the menu and in the room header turns it on and off, and the Workbench has a volume slider. It pauses when the tab is hidden.
+
 ## How it's built
 
 ```
 src/engine.js   physics, rooms and gadgets — plain JS, no DOM, also runs under Node
 src/ui.js       three.js (r128) scene, touch input and game flow
 src/plan.js     2D floor-plan drawing for the room thumbnails
+src/music.js    the soundtrack: synthesised instruments, score and sequencer
 src/page.html   markup and styles
 build.py        assembles everything into index.html
 tools/          headless solvers used to tune the rooms

@@ -36,6 +36,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
 .mark { display: flex; flex-direction: column; gap: 10px; }
 .mark h1 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: clamp(34px, 10vw, 58px); line-height: 0.95; letter-spacing: 0.01em; text-wrap: balance; }
 .mark p { margin: 0; color: var(--muted); max-width: 46ch; line-height: 1.45; }
+.mark-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.iconbtn.music .ic-off { display: none; }
+.iconbtn.music[aria-pressed="false"] .ic-on { display: none; }
+.iconbtn.music[aria-pressed="false"] .ic-off { display: block; color: var(--muted); }
+.iconbtn.music[aria-pressed="true"] { color: var(--amber); }
 .row-dominoes { display: flex; gap: 7px; height: 30px; align-items: flex-end; padding-left: 4px; }
 .row-dominoes i { display: block; width: 9px; height: 28px; border-radius: 2px; transform-origin: 100% 100%; animation: tip 0.32s cubic-bezier(.55,0,.9,.4) forwards; }
 .row-dominoes i::after { content: ""; display: block; margin: 5px auto 0; width: 3px; height: 3px; border-radius: 50%; background: rgba(255,255,255,.75); box-shadow: 0 13px 0 rgba(255,255,255,.75); }
@@ -150,7 +155,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
   <section id="menu" class="screen gutter" aria-label="Rooms">
     <div class="menu-inner">
       <div class="mark">
-        <div class="row-dominoes" aria-hidden="true" id="markRow"></div>
+        <div class="mark-top"><div class="row-dominoes" aria-hidden="true" id="markRow"></div><button class="iconbtn music" id="menuMusic" aria-label="Music" aria-pressed="true"><svg class="ic-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg><svg class="ic-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/><path d="M3 3l18 18"/></svg></button></div>
         <h1>Topple House</h1>
         <p>Line up dominoes through every room of the house, up onto the furniture and over the gaps with catapults, then knock it all down. Each room has a job to do. The whole house is yours to play with.</p>
       </div>
@@ -173,6 +178,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
         </button>
         <div class="title"><div class="t1" id="t1"></div><div class="t2" id="t2"></div></div>
         <div class="box"><div class="n" id="boxN">0</div><div class="lbl" id="boxL">in the box</div></div>
+        <button class="iconbtn music" id="musicBtn" aria-label="Music" aria-pressed="true"><svg class="ic-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg><svg class="ic-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/><path d="M3 3l18 18"/></svg></button>
         <button class="iconbtn" id="setBtn" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
       </div>
       <div class="chips" id="chips"></div>
@@ -205,6 +211,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
       <div class="scrim" id="settings" hidden>
         <div class="sheet gutter" role="dialog" aria-label="Settings">
           <h2>Workbench</h2>
+          <label class="setting">
+            <span class="nm">Music</span><span class="val" id="mvVal"></span>
+            <input type="range" id="musicVol" min="0" max="1" step="0.05">
+            <span class="ds">Lo-fi beats from a 16-bit sound chip. It sounds muffled while you build and opens up when the dominoes start falling.</span>
+          </label>
           <label class="setting">
             <span class="nm">Spacing</span><span class="val" id="spVal"></span>
             <input type="range" id="spacing" min="3.6" max="8" step="0.2">
@@ -265,6 +276,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 /*__ENGINE__*/
+</script>
+<script>
+/*__MUSIC__*/
 </script>
 <script>
 /*__UI3D__*/

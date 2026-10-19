@@ -13,7 +13,7 @@ function loadSave() {
   try { s = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { s = null; }
   s = s || {};
   s.stars = s.stars || {}; s.best = s.best || {}; s.layouts = s.layouts || {};
-  s.settings = Object.assign({ spacing: 5.6, smart: true, shaky: false, slow: false }, s.settings || {});
+  s.settings = Object.assign({ spacing: 5.6, smart: true, shaky: false, slow: false, music: true, musicVol: .6 }, s.settings || {});
   return s;
 }
 const SAVE = loadSave();
@@ -751,8 +751,10 @@ function openRoom(id) {
   setTool('build');
   resize(); fitCamera(false);
   updateHud(); hideAllBars();
+  Music.setMood('build');
 }
 function closeRoom() {
+  Music.setMood('menu');
   if (G) saveLayout();
   G = null;
   $('game').hidden = true; $('menu').hidden = false;
@@ -986,7 +988,7 @@ function advanceRewind(dt) {
   const k = Math.min(1, RW.t), e = 1 - Math.pow(1 - k, 3);
   G.sim.d.forEach((d, i) => { d.ph = RW.from[i] * (1 - e); if (k >= 1) d.st = 0; });
   G.sim.rollers.forEach((r, i) => { const p = G.props[i]; if (!p) return; r.x = RW.rollers[i][0] + (p.x - RW.rollers[i][0]) * e; r.y = RW.rollers[i][1] + (p.y - RW.rollers[i][1]) * e; });
-  if (k >= 1) { G.mode = 'edit'; G.sim = null; $('playBar').hidden = true; updateHud(); updateSelBar(); G.dirty = true; }
+  if (k >= 1) { G.mode = 'edit'; G.sim = null; $('playBar').hidden = true; updateHud(); updateSelBar(); G.dirty = true; Music.setMood('build'); }
 }
 function play(mode, fromIdx, fromGad) {
   if (G.mode !== 'edit') return;
@@ -1000,14 +1002,16 @@ function play(mode, fromIdx, fromGad) {
   $('playTxt').textContent = mode === 'preview' ? 'Preview' : 'Run';
   $('slowBtn').textContent = SAVE.settings.slow ? 'Full speed' : 'Slow-mo';
   $('playBar').hidden = false; $('spillBar').hidden = true;
+  if (mode !== 'spill') Music.setMood('run');
   updateHud();
 }
 function stopPlayback() {
   if (G.mode === 'preview') { G.doneFor = 99; finishPlayback(); }
-  else if (G.mode === 'run') { G.mode = 'edit'; G.sim = null; $('playBar').hidden = true; updateHud(); G.dirty = true; }
+  else if (G.mode === 'run') { G.mode = 'edit'; G.sim = null; $('playBar').hidden = true; updateHud(); G.dirty = true; Music.setMood('build'); }
   else if (G.mode === 'spill') { G.doneFor = 99; finishPlayback(); }
 }
 function restand() {
+  Music.setMood('build');
   G.mode = 'edit'; G.sim = null; $('spillBar').hidden = true; $('resultScrim').hidden = true; updateHud(); G.dirty = true;
 }
 
@@ -1031,7 +1035,7 @@ function showResult() {
   if (G.sandbox) {
     const fell = G.sim.d.filter(d => d.st !== 0).length;
     $('spillTxt').textContent = `${fell} of ${G.layout.length} fell in ${G.sim.t.toFixed(1)} s`;
-    $('spillBar').hidden = false; return;
+    $('spillBar').hidden = false; Music.jingle(fell > 0); return;
   }
   const r = evaluate(), L = G.L;
   $('resBig').textContent = r.ok ? SUCCESS[G.id] : 'Not quite';
@@ -1055,6 +1059,7 @@ function showResult() {
   $('resNext').hidden = !r.ok;
   $('resNext').textContent = idx < LEVELS.length - 1 ? 'Next room' : 'Open the whole house';
   // let the payoff play for a beat before the card covers it
+  Music.jingle(r.ok);
   setTimeout(() => { if (G && G.mode === 'done') $('resultScrim').hidden = false; }, 700);
 }
 
@@ -1447,6 +1452,7 @@ $('fitBtn').addEventListener('click', () => { fitCamera(true); });
 $('setBtn').addEventListener('click', () => {
   if (G.mode !== 'edit') return;
   $('spacing').value = SAVE.settings.spacing; spLabel();
+  $('musicVol').value = SAVE.settings.musicVol; mvLabel();
   $('smart').checked = SAVE.settings.smart; $('shaky').checked = SAVE.settings.shaky; $('slow').checked = SAVE.settings.slow;
   $('clearBtn').textContent = 'Clear this room'; $('clearBtn').dataset.arm = '';
   $('settings').hidden = false;
@@ -1457,6 +1463,28 @@ $('smart').addEventListener('change', e => { SAVE.settings.smart = e.target.chec
 $('shaky').addEventListener('change', e => { SAVE.settings.shaky = e.target.checked; persist(); });
 $('slow').addEventListener('change', e => { SAVE.settings.slow = e.target.checked; persist(); });
 $('closeSet').addEventListener('click', () => { $('settings').hidden = true; });
+// ---------- music ----------
+function mvLabel() { const v = +$('musicVol').value; $('mvVal').textContent = v === 0 ? 'off' : Math.round(v * 100) + '%'; }
+function syncMusicButtons() { for (const id of ['musicBtn', 'menuMusic']) $(id).setAttribute('aria-pressed', String(SAVE.settings.music && SAVE.settings.musicVol > 0)); }
+function setMusic(onOff) {
+  SAVE.settings.music = onOff; persist();
+  if (onOff) { if (SAVE.settings.musicVol <= 0) SAVE.settings.musicVol = .6; Music.start(SAVE.settings.musicVol); } else Music.stop();
+  syncMusicButtons();
+}
+for (const id of ['musicBtn', 'menuMusic']) $(id).addEventListener('click', e => { e.stopPropagation(); setMusic(!(SAVE.settings.music && Music.isOn())); });
+$('musicVol').addEventListener('input', () => {
+  const v = +$('musicVol').value; SAVE.settings.musicVol = v; mvLabel(); persist();
+  if (v > 0 && SAVE.settings.music) { Music.start(v); Music.setVolume(v); } else if (v === 0) Music.stop();
+  syncMusicButtons();
+});
+// browsers only allow sound after a tap or key press, so the music starts on the first one
+let musicArmed = true;
+function firstGesture() {
+  if (!musicArmed) return; musicArmed = false;
+  if (SAVE.settings.music && SAVE.settings.musicVol > 0) Music.start(SAVE.settings.musicVol);
+}
+window.addEventListener('pointerdown', firstGesture, true);
+window.addEventListener('keydown', firstGesture, true);
 $('settings').addEventListener('click', e => { if (e.target === $('settings')) $('settings').hidden = true; });
 let clearTimer = 0;
 $('clearBtn').addEventListener('click', () => {
@@ -1519,6 +1547,7 @@ new ResizeObserver(() => { if (G && !$('game').hidden) resize(); }).observe($('s
 window.addEventListener('resize', () => { if (!G) renderMenu(); });
 
 function start(data) {
+  syncMusicButtons();
   buildMarkRow();
   renderMenu();
   if (data && data.room) openRoom(data.room);
