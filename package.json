@@ -1,0 +1,9 @@
+{
+  "name": "topple-house",
+  "private": true,
+  "description": "3D domino-toppling game set in a cutaway dollhouse",
+  "scripts": {
+    "build": "python3 build.py",
+    "solve": "node tools/solve.js"
+  }
+}
