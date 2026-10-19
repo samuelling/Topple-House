@@ -79,6 +79,9 @@ function drawFurniture(c, f, s) {
       c.strokeStyle = 'rgba(90,60,20,.35)'; c.lineWidth = 1;
       for (let k = 0.35; k < 1; k += 0.22) { c.beginPath(); c.arc(f.cx, f.cy, f.r * k, 0, 7); c.stroke(); }
       c.fillStyle = '#e8e2f3'; c.beginPath(); c.ellipse(f.cx - 3, f.cy - 2, 7, 4.5, .5, 0, 7); c.fill();
+    } else if (f.k === 'globe') {
+      c.fillStyle = '#4f8fc0'; c.beginPath(); c.arc(f.cx, f.cy, f.r, 0, 7); c.fill();
+      c.fillStyle = '#8fbf6a'; c.beginPath(); c.ellipse(f.cx - 3, f.cy - 2, f.r * .5, f.r * .3, .4, 0, 7); c.fill();
     } else if (f.k === 'bin') {
       c.fillStyle = '#5a6170'; c.beginPath(); c.arc(f.cx, f.cy, f.r, 0, 7); c.fill();
       c.fillStyle = '#737b8c'; c.beginPath(); c.arc(f.cx, f.cy, f.r * .7, 0, 7); c.fill();
@@ -147,6 +150,7 @@ function drawFurniture(c, f, s) {
     default: // wooden pieces: nightstand, dresser, bench, console
       c.fillStyle = '#8b6142'; rr(c, x, y, w, h, 3); c.fill();
       c.fillStyle = '#a3774f'; rr(c, x + 3, y + 3, w - 6, h - 6, 2); c.fill();
+      if (f.k === 'shelfstep') { c.fillStyle = `rgba(255,240,210,${(f.top || 30) / 300})`; c.fillRect(x, y, w, h); }
       if (f.k === 'dresser' || f.k === 'bench') { c.strokeStyle = 'rgba(60,35,15,.35)'; c.lineWidth = 1; c.beginPath(); for (let k = y + h / 4; k < y + h - 2; k += h / 4) { c.moveTo(x + 3, k); c.lineTo(x + w - 3, k); } c.stroke(); }
   }
   label(c, f.label, x + w / 2, y + h / 2, s, w, f.k === 'tv' || f.k === 'sofa' || f.k === 'bed' ? 'rgba(255,255,255,.7)' : 'rgba(28,24,20,.6)');
@@ -238,6 +242,9 @@ function drawTarget(c, t, hit, s, time, idx, ordered, hitTime) {
     case 'chime':
       c.fillStyle = '#c4cad3'; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
       c.strokeStyle = '#7b8494'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(x - r * .6, y + r * .4); c.lineTo(x + r * .6, y - r * .4); c.stroke(); break;
+    case 'trophy':
+      c.fillStyle = '#d9a93a'; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+      c.fillStyle = '#f3d58a'; c.beginPath(); c.arc(x - r * .3, y - r * .3, r * .35, 0, 7); c.fill(); break;
     case 'duck':
       c.fillStyle = '#f5d02f'; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
       c.beginPath(); c.arc(x + r * .5, y - r * .45, r * .55, 0, 7); c.fill();

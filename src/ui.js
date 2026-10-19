@@ -1,9 +1,9 @@
 (() => {
 'use strict';
 const PAL = ['#e5483f', '#f08a2c', '#f2c230', '#3fae6a', '#3a7bd5', '#8a56c9'];
-const SUCCESS = { bedroom: 'Good morning!', living: 'Lights out.', kitchen: 'Breakfast is served.', bathroom: 'Duck overboard!', hallway: 'Ding-dong!' };
+const SUCCESS = { bedroom: 'Good morning!', living: 'Lights out.', kitchen: 'Breakfast is served.', bathroom: 'Duck overboard!', hallway: 'Ding-dong!', study: 'Trophy toppled!' };
 const SANDBOX_ID = 'house';
-const ALL_ROOMS = ['bedroom', 'hallway', 'bathroom', 'living', 'kitchen'];
+const ALL_ROOMS = ['bedroom', 'hallway', 'bathroom', 'living', 'kitchen', 'study'];
 const $ = id => document.getElementById(id);
 
 // ---------- save ----------
@@ -159,6 +159,13 @@ function buildFurniture(g, f, W) {
       cyl(g, f.r, f.r * .85, 34, f.cx, e + 17, f.cy, mat('#c4a06b', { roughness: .95 }));
       const cloth = new T3.Mesh(new T3.SphereGeometry(f.r * .75, 12, 8), mat('#e8e2f3'));
       cloth.scale.set(1, .45, 1); cloth.position.set(f.cx, e + 35, f.cy); g.add(cloth);
+    } else if (f.k === 'globe') {
+      cyl(g, f.r * .55, f.r * .7, 3, f.cx, e + 1.5, f.cy, mat('#5b4636'));
+      cyl(g, 1, 1, f.top - f.r * 2 - 3, f.cx, e + 3 + (f.top - f.r * 2 - 3) / 2, f.cy, mat('#c8a24a', { metalness: .7, roughness: .3 }));
+      const tex = canvasTex('globe', 256, 128, (c, w, h) => { c.fillStyle = '#4f8fc0'; c.fillRect(0, 0, w, h); c.fillStyle = '#8fbf6a';
+        for (const [x, y, rx, ry] of [[40, 40, 26, 18], [70, 80, 14, 26], [130, 36, 34, 16], [150, 78, 18, 22], [210, 44, 28, 20], [215, 96, 14, 9]]) { c.beginPath(); c.ellipse(x, y, rx, ry, .3, 0, 7); c.fill(); } });
+      const ball = new T3.Mesh(new T3.SphereGeometry(f.r, 28, 18), new T3.MeshStandardMaterial({ map: tex, roughness: .5 }));
+      ball.position.set(f.cx, e + f.top - f.r, f.cy); ball.rotation.z = .4; ball.castShadow = true; g.add(ball);
     } else if (f.k === 'bin') {
       cyl(g, f.r, f.r * .9, 42, f.cx, e + 21, f.cy, mat('#5a6170', { metalness: .5, roughness: .4 }));
       cyl(g, f.r * 1.03, f.r * 1.03, 3, f.cx, e + 43, f.cy, mat('#737b8c', { metalness: .5, roughness: .4 }));
@@ -274,6 +281,26 @@ function buildFurniture(g, f, W) {
       box(g, w, 44, h, cx, e + 22, cz, wood);
       for (let k = 0; k < 3; k++) box(g, w - 8, 4, 12, cx, e + 6, y + 14 + k * 20, mat('#2b2f38'));
       break;
+    case 'shelfstep': {
+      // one step of a stepped bookcase; book spines face the open (+x) side
+      const tex = canvasTex('books', 512, 128, (c, w, h) => {
+        c.fillStyle = '#6b4a30'; c.fillRect(0, 0, w, h);
+        const cols = ['#b5473a', '#2f6f78', '#e0b34a', '#4a5d8c', '#7a8b52', '#c0703a', '#e8e2d0', '#5a3d6b'];
+        let x = 4, k = 0;
+        while (x < w - 6) { const bw = 10 + (k * 37 % 13), bh = h * (.62 + (k * 53 % 30) / 100); c.fillStyle = cols[k % cols.length]; c.fillRect(x, h - bh - 6, bw, bh); c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(x + 2, h - bh + 4, bw - 4, 2); x += bw + 2; k++; }
+      });
+      const t = tex.clone(); t.needsUpdate = true; t.repeat.set(h / 120, 1);
+      const books = new T3.MeshStandardMaterial({ map: t, roughness: .8 });
+      const woodM = mat('#8b6142', { roughness: .6 });
+      box(g, w, f.top, h, cx, e + f.top / 2, cz, [books, woodM, mat('#a3774f', { roughness: .6 }), woodM, woodM, woodM]);
+      return;
+    }
+    case 'desk': {
+      box(g, w, 4, h, cx, e + f.top - 2, cz, mat('#7a593b', { roughness: .45 }));
+      box(g, 26, f.top - 4, h - 6, x + w - 14, e + (f.top - 4) / 2, cz, wood);
+      for (const [a, b] of [[x + 3, y + 3], [x + 3, y + h - 3]]) box(g, 3, f.top - 4, 3, a, e + (f.top - 4) / 2, b, wood);
+      return;
+    }
     case 'console':
       box(g, w, 4, h, cx, e + 76, cz, woodLight);
       for (const [a, b] of [[x + 3, y + 3], [x + w - 3, y + 3], [x + 3, y + h - 3], [x + w - 3, y + h - 3]]) box(g, 3, 74, 3, a, e + 37, b, wood);
@@ -315,6 +342,14 @@ function buildTarget(g, t, W) {
       box(body, 2.6, 1.4, 8, 0, .7, 0, flash('#23262e', { roughness: .4 }));
       box(body, 1, .4, 1, 0, 1.5, -2.5, mat('#ef6a5a'));
       break;
+    case 'trophy': {
+      const gold = flash('#d9a93a', { metalness: .85, roughness: .25 });
+      box(body, 7, 3, 7, 0, 1.5, 0, mat('#3a2a1c', { roughness: .5 }));
+      cyl(body, .9, 1.2, 6, 0, 6, 0, gold);
+      const cup = new T3.Mesh(new T3.CylinderGeometry(4, 1.6, 7, 20, 1, true), gold); cup.position.y = 12.5; cup.castShadow = true; body.add(cup);
+      for (const zz of [-1, 1]) { const hdl = new T3.Mesh(new T3.TorusGeometry(1.8, .45, 6, 12, Math.PI), gold); hdl.position.set(0, 13, zz * 4.4); hdl.rotation.set(0, zz > 0 ? 0 : Math.PI, Math.PI / 2); body.add(hdl); }
+      o.tips = true; o.tipBack = 3.5; break;
+    }
     case 'cereal': {
       const tex = canvasTex('cereal', 128, 192, (c, w, h) => { c.fillStyle = '#d6453d'; c.fillRect(0, 0, w, h); c.fillStyle = '#f2c230'; c.fillRect(0, h * .35, w, h * .2); c.fillStyle = '#fff'; c.font = 'bold 26px Figtree, sans-serif'; c.textAlign = 'center'; c.fillText('OATY', w / 2, h * .5); c.fillStyle = '#f7e2b5'; c.beginPath(); c.arc(w / 2, h * .75, 22, 0, 7); c.fill(); });
       const m = new T3.MeshStandardMaterial({ map: tex, roughness: .7 });
@@ -488,36 +523,87 @@ function syncBalls(list, playing) {
 function buildGadgetMesh(gd) {
   const S = GADGETS[gd.k], grp = new T3.Group();
   const wood = mat('#8a5a36', { roughness: .6 }), dark = mat('#4b3322', { roughness: .7 }), metal = mat('#a3acb6', { metalness: .6, roughness: .35 });
-  const o = { grp, k: gd.k };
-  box(grp, S.len, S.base, S.wid, 0, S.base / 2, 0, dark);
-  box(grp, 4.5, 1.2, S.wid - 3, -S.len / 2 + 3, S.base + .6, 0, mat('#d4573f', { roughness: .5 })); // trigger pad
-  const arm = new T3.Group(); grp.add(arm);
-  const cupAt = (x, y) => {
-    const cup = new T3.Mesh(new T3.SphereGeometry(3.2, 14, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), metal); cup.position.set(x, y, 0); cup.castShadow = true; arm.add(cup);
-    const ammo = new T3.Mesh(new T3.SphereGeometry(2.2, 16, 12), MARBLE_MAT()); ammo.position.set(x, y + .4, 0); arm.add(ammo);
-    o.ammo = ammo;
-  };
-  if (gd.k === 'catapult') {
-    for (const zz of [S.wid / 2 - 1.5, -S.wid / 2 + 1.5]) box(grp, 3, 7, 1.6, 0, S.base + 3.5, zz, wood);
-    arm.position.set(0, S.armZ - 1, 0);
-    box(arm, S.len + 2, 1.6, 3.4, 0, 0, 0, wood);
-    cupAt(S.len / 2 - 1, 1.6);
-    o.rest = -0.28; o.fire = 1.05;
-  } else {
-    for (const zz of [S.wid / 2 - 2, -S.wid / 2 + 2]) {
-      const p1 = box(grp, 2.6, S.armZ + 2, 2.6, -6, S.base + S.armZ / 2 - 1, zz, wood); p1.rotation.z = -0.22;
-      const p2 = box(grp, 2.6, S.armZ + 2, 2.6, 6, S.base + S.armZ / 2 - 1, zz, wood); p2.rotation.z = 0.22;
+  const o = { grp, k: gd.k, kind: S.kind };
+  const ammoAt = (parent, x, y) => { const m = new T3.Mesh(new T3.SphereGeometry(2.2, 16, 12), MARBLE_MAT()); m.position.set(x, y, 0); parent.add(m); o.ammo = m; };
+  if (S.kind === 'launcher') {
+    box(grp, S.len, S.base, S.wid, 0, S.base / 2, 0, dark);
+    box(grp, 4.5, 1.2, S.wid - 3, -S.len / 2 + 3, S.base + .6, 0, mat('#d4573f', { roughness: .5 })); // trigger pad
+    const arm = new T3.Group(); grp.add(arm);
+    const cupAt = (x, y) => {
+      const cup = new T3.Mesh(new T3.SphereGeometry(3.2, 14, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), metal); cup.position.set(x, y, 0); arm.add(cup);
+      ammoAt(arm, x, y + .4);
+    };
+    if (gd.k === 'catapult') {
+      for (const zz of [S.wid / 2 - 1.5, -S.wid / 2 + 1.5]) box(grp, 3, 7, 1.6, 0, S.base + 3.5, zz, wood);
+      arm.position.set(0, S.armZ - 1, 0);
+      box(arm, S.len + 2, 1.6, 3.4, 0, 0, 0, wood);
+      cupAt(S.len / 2 - 1, 1.6);
+      o.rest = -0.28; o.fire = 1.05;
+    } else {
+      for (const zz of [S.wid / 2 - 2, -S.wid / 2 + 2]) {
+        const p1 = box(grp, 2.6, S.armZ + 2, 2.6, -6, S.base + S.armZ / 2 - 1, zz, wood); p1.rotation.z = -0.22;
+        const p2 = box(grp, 2.6, S.armZ + 2, 2.6, 6, S.base + S.armZ / 2 - 1, zz, wood); p2.rotation.z = 0.22;
+      }
+      box(grp, 2, 2, S.wid, 0, S.base + S.armZ, 0, metal);
+      arm.position.set(0, S.base + S.armZ, 0);
+      box(arm, 54, 2.2, 2.8, 9, 0, 0, wood);
+      box(arm, 9, 11, 10, -16, -6, 0, mat('#5a6170', { metalness: .4, roughness: .5 }));
+      cupAt(35, 1.8);
+      o.rest = -0.95; o.fire = 1.2;
     }
-    box(grp, 2, 2, S.wid, 0, S.base + S.armZ, 0, metal);
-    arm.position.set(0, S.base + S.armZ, 0);
-    box(arm, 54, 2.2, 2.8, 9, 0, 0, wood);
-    box(arm, 9, 11, 10, -16, -6, 0, mat('#5a6170', { metalness: .4, roughness: .5 }));
-    cupAt(35, 1.8);
-    o.rest = -0.95; o.fire = 1.2;
+    o.arm = arm; arm.rotation.z = o.rest;
+  } else if (S.kind === 'ramp') {
+    // a plank sloping down toward the front, propped up at the back
+    const rise = gd.power, th = Math.atan(rise / S.len), L = Math.hypot(S.len, rise);
+    const plank = new T3.Group(); plank.position.set(0, rise / 2 + 1.5, 0); plank.rotation.z = -th; grp.add(plank);
+    box(plank, L, 1.4, S.wid, 0, -.7, 0, mat('#c99a63', { roughness: .55 }));
+    for (const zz of [S.wid / 2 + .4, -S.wid / 2 - .4]) box(plank, L, 3, .8, 0, .8, zz, mat('#8a5a36', { roughness: .6 }));
+    for (const xx of [-S.len / 2 + 2, -S.len / 6]) {
+      const h = rise * (1 - (xx + S.len / 2) / S.len) + 1;
+      for (const zz of [S.wid / 2 - 1.5, -S.wid / 2 + 1.5]) box(grp, 2, h, 2, xx, h / 2, zz, dark);
+    }
+  } else if (S.kind === 'lift') {
+    box(grp, S.len, S.base, S.wid, 0, S.base / 2, 0, dark);
+    const H = gd.power + 16, bx = -S.len / 2 + 1.5;
+    for (const zz of [S.wid / 2 - 1.5, -S.wid / 2 + 1.5]) box(grp, 2.4, H, 2.4, bx, H / 2, zz, wood);
+    box(grp, 2.4, 2.4, S.wid, bx, H, 0, wood);
+    const wheel = new T3.Mesh(new T3.TorusGeometry(3, .8, 8, 20), metal); wheel.position.set(bx + 3.5, H - 1, 0); grp.add(wheel);
+    const plat = new T3.Group(); grp.add(plat);
+    box(plat, S.len - 4, 1.6, S.wid - 4, 1, .8, 0, mat('#c99a63', { roughness: .55 }));
+    box(plat, 1.2, 3, S.wid - 4, -S.len / 2 + 3.6, 2, 0, mat('#d4573f', { roughness: .5 })); // pusher
+    ammoAt(plat, 2, 3.8);
+    const rope = new T3.Mesh(new T3.CylinderGeometry(.35, .35, 1, 6), mat('#e8dcc0')); grp.add(rope);
+    o.plat = plat; o.rope = rope; o.H = H; o.wheelX = bx + 3.5;
+    plat.position.y = S.base;
+  } else if (S.kind === 'tramp') {
+    const r = S.len / 2 - 1.5;
+    for (const [lx, lz] of [[r * .7, r * .7], [-r * .7, r * .7], [r * .7, -r * .7], [-r * .7, -r * .7]]) cyl(grp, .9, .9, S.base, lx, S.base / 2, lz, dark, 8);
+    const ring = new T3.Mesh(new T3.TorusGeometry(r, 1.2, 10, 32), mat('#3a7bd5', { roughness: .4 })); ring.rotation.x = Math.PI / 2; ring.position.y = S.base - .8; grp.add(ring);
+    const matM = new T3.Mesh(new T3.CircleGeometry(r - 1, 32), mat('#1d1f26', { roughness: .9, side: T3.DoubleSide })); matM.rotation.x = -Math.PI / 2; matM.position.y = S.base - .6; grp.add(matM);
+    // the arrow shows which way it throws
+    const sh = new T3.Shape(); sh.moveTo(7, 0); sh.lineTo(-2, 4.5); sh.lineTo(0, 0); sh.lineTo(-2, -4.5); sh.lineTo(7, 0);
+    const arrow = new T3.Mesh(new T3.ShapeGeometry(sh), mat('#f6b33c', { side: T3.DoubleSide })); arrow.rotation.x = -Math.PI / 2; arrow.position.y = S.base - .5; grp.add(arrow);
+    o.mat = matM; o.arrow = arrow;
   }
-  o.arm = arm; arm.rotation.z = o.rest;
   grp.traverse(n => { if (n.isMesh) { n.castShadow = true; n.receiveShadow = true; } });
   return o;
+}
+// per-kind animation while a run plays (t = seconds since the gadget went off, or -1)
+function animateGadget(o, gd, sg, t) {
+  const S = GADGETS[gd.k];
+  if (o.kind === 'launcher') {
+    o.arm.rotation.z = t < 0 ? o.rest : o.rest + (o.fire - o.rest) * Math.min(1, t / 0.12);
+    o.ammo.visible = t < 0;
+  } else if (o.kind === 'lift') {
+    const h = t < 0 ? 0 : Math.min(gd.power, t * S.speed);
+    o.plat.position.y = S.base + h;
+    o.ammo.visible = !(sg && sg.released);
+    const top = o.H - 1, bot = S.base + h + 2, len = Math.max(.1, top - bot);
+    o.rope.scale.y = len; o.rope.position.set(o.wheelX + 3, bot + len / 2, 0);
+  } else if (o.kind === 'tramp') {
+    const dip = t >= 0 && t < .6 ? -3 * Math.exp(-t * 9) * Math.cos(t * 30) : 0;
+    o.mat.position.y = S.base - .6 + dip; o.arrow.position.y = S.base - .5 + dip;
+  }
 }
 function syncGadgets(playing) {
   if (R.gadVer !== G.gadVer) {
@@ -528,7 +614,9 @@ function syncGadgets(playing) {
     // trajectory previews
     while (R.arcGroup.children.length) { const c = R.arcGroup.children.pop(); c.geometry && c.geometry.dispose(); }
     G.gadgets.forEach((gd, i) => {
-      const pts = predictArc(G.W, gd, G.gadgets).map(([x, y, z]) => new T3.Vector3(x, z, y));
+      const arc = predictArc(G.W, gd, G.gadgets);
+      if (!arc) return;
+      const pts = arc.map(([x, y, z]) => new T3.Vector3(x, z, y));
       const sel = G.selGad === i;
       const ln = new T3.Line(new T3.BufferGeometry().setFromPoints(pts), new T3.LineDashedMaterial({ color: lin(sel ? '#ffd36b' : '#f6b33c'), dashSize: 2.5, gapSize: 2.5, transparent: true, opacity: sel ? 1 : .6, depthTest: false }));
       ln.computeLineDistances(); ln.renderOrder = 5; R.arcGroup.add(ln);
@@ -543,8 +631,7 @@ function syncGadgets(playing) {
     o.grp.position.set(gd.x, layerZ(G.W, gd.L || 'g', gd.x, gd.y), gd.y); o.grp.rotation.y = -gd.a;
     const sg = playing && G.sim ? G.sim.gad[i] : null;
     const t = sg && sg.fired >= 0 ? G.sim.t - sg.fired : -1;
-    o.arm.rotation.z = t < 0 ? o.rest : o.rest + (o.fire - o.rest) * Math.min(1, t / 0.12);
-    o.ammo.visible = t < 0;
+    animateGadget(o, gd, sg, t);
   });
 }
 function ensureCap(n) {
@@ -753,8 +840,8 @@ function updateSelBar() {
   $('powBox').hidden = G.selGad < 0;
   if (G.selGad >= 0) {
     const g = G.gadgets[G.selGad];
-    $('selTxt').textContent = GADGETS[g.k].name;
-    $('powVal').textContent = (g.power / 100).toFixed(1) + ' m/s';
+    $('selTxt').textContent = `${GADGETS[g.k].name} · ${GADGETS[g.k].label.toLowerCase()}`;
+    $('powVal').textContent = GADGETS[g.k].fmt(g.power);
     $('flipBtn').hidden = true; $('testBtn').hidden = false; $('delBtn').hidden = false;
   } else if (G.selProp >= 0) {
     $('selTxt').textContent = G.props[G.selProp].k === 'marble' ? 'Starting marble' : 'Toilet roll';
@@ -903,7 +990,7 @@ function advanceRewind(dt) {
 }
 function play(mode, fromIdx, fromGad) {
   if (G.mode !== 'edit') return;
-  if (!G.layout.length && mode !== 'preview') { toast('Lay some dominoes first.'); return; }
+  if (!G.layout.length && !G.gadgets.length && mode !== 'preview') { toast('Lay some dominoes first.'); return; }
   G.sim = makeSim(G.W, G.layout, G.props, G.gadgets);
   if (fromGad != null) fireGadget(G.sim, G.sim.gad[fromGad]);
   else if (fromIdx != null) topple(G.sim, fromIdx, 1, 3);
@@ -1335,7 +1422,7 @@ $('flipBtn').addEventListener('click', () => { pushUndo(); flipSel(); });
 function nudgePower(d) {
   if (G.selGad < 0) return;
   const g = G.gadgets[G.selGad], S = GADGETS[g.k];
-  const np = Math.max(S.pmin, Math.min(S.pmax, g.power + d));
+  const np = Math.max(S.pmin, Math.min(S.pmax, g.power + Math.sign(d) * S.pstep));
   if (np === g.power) return;
   pushUndo(); g.power = np; changed();
 }
@@ -1385,7 +1472,7 @@ function renderMenu() {
   const items = [...LEVELS.map(l => l.id), SANDBOX_ID];
   for (const id of items) {
     const sandbox = id === SANDBOX_ID, L = sandbox ? null : levelDef(id);
-    const b = document.createElement('button'); b.className = 'card';
+    const b = document.createElement('button'); b.className = 'card' + (sandbox ? ' wide' : '');
     const c = document.createElement('canvas');
     const meta = document.createElement('div'); meta.className = 'meta';
     const name = document.createElement('div'); name.className = 'room'; name.textContent = sandbox ? 'Whole house' : L.name;

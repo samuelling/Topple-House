@@ -7,13 +7,23 @@ const GRAV = 981;
 const STAIR_DOWN_REACH = 1.55, STAIR_UP_REACH = 0.75;
 const CHW = DW / 2 + 0.6;            // half-width of a falling domino's contact edge (allows for wobble)
 
-// Gadgets: hit the back end and the arm flings its marble from the cup.
+// Gadget registry. Every gadget has a footprint (len along its facing, wid across), a base height,
+// one adjustable setting (stored as g.power: pmin..pmax in pstep steps) and a kind that decides its behaviour:
+//   launcher  hit it and the arm flings its marble (power = launch speed, cm/s)
+//   ramp      a slope marbles roll down or up; the high end is at the back (power = rise, cm)
+//   lift      hit it and its platform raises a marble, then nudges it off the front (power = height, cm)
+//   tramp     a springboard: a marble landing on it is thrown up and forward (power = spring speed, cm/s)
+// New kinds (fuses, mousetraps, toy trucks…) plug in through fireGadget, stepGadgets, stepBall and predictArc.
+const cmS = v => (v / 100).toFixed(1) + ' m/s', cm = v => Math.round(v) + ' cm';
 const GADGETS = {
-  catapult: { name: 'Catapult', len: 28, wid: 12, base: 6, armZ: 9, angle: 55 * Math.PI / 180, pmin: 150, pmax: 520, pdef: 300 },
-  trebuchet: { name: 'Trebuchet', len: 42, wid: 18, base: 8, armZ: 46, angle: 58 * Math.PI / 180, pmin: 150, pmax: 620, pdef: 380 },
+  catapult: { name: 'Catapult', kind: 'launcher', len: 28, wid: 12, base: 6, armZ: 9, angle: 55 * Math.PI / 180, pmin: 150, pmax: 520, pdef: 300, pstep: 10, label: 'Power', fmt: cmS },
+  trebuchet: { name: 'Trebuchet', kind: 'launcher', len: 42, wid: 18, base: 8, armZ: 46, angle: 58 * Math.PI / 180, pmin: 150, pmax: 620, pdef: 380, pstep: 10, label: 'Power', fmt: cmS },
+  ramp: { name: 'Ramp', kind: 'ramp', len: 60, wid: 11, base: 2, pmin: 10, pmax: 100, pdef: 46, pstep: 2, label: 'Height', fmt: cm },
+  lift: { name: 'Pulley lift', kind: 'lift', len: 18, wid: 16, base: 3, speed: 55, push: 70, pmin: 16, pmax: 140, pdef: 60, pstep: 2, label: 'Height', fmt: cm },
+  trampoline: { name: 'Trampoline', kind: 'tramp', len: 26, wid: 26, base: 8, angle: 66 * Math.PI / 180, pmin: 150, pmax: 480, pdef: 300, pstep: 10, label: 'Spring', fmt: cmS },
 };
 // Height of each target's body, for reach checks
-const TARGET_H = { bell: 7, switch: 9, remote: 2, cereal: 22, chime: 11, duck: 12, doorbell: 12 };
+const TARGET_H = { bell: 7, switch: 9, remote: 2, cereal: 22, chime: 11, duck: 12, doorbell: 12, trophy: 18 };
 
 // ---------- Rooms ----------
 // furniture: top = height of its top surface; build = dominoes can stand on it.
@@ -34,7 +44,7 @@ const LEVELS = [
     noPlace: [], stairs: [],
     targets: [{ id: 'bell', k: 'bell', x: 125, y: 121, r: 6, hitR: 9, on: 'ns', label: 'Bedside bell' }],
     props: [{ k: 'marble', x: 28, y: 352, a: 0, start: true }],
-    toolbox: { catapult: 1 },
+    toolbox: { catapult: 1, trampoline: 1 },
     budget: 60, par: 45,
   },
   {
@@ -63,7 +73,7 @@ const LEVELS = [
     id: 'kitchen', name: 'Kitchen', mission: 'Breakfast order',
     goal: 'Tip the cereal box on the island first, then ring the spoon chime.', w: 340, h: 360, floor: 'tile',
     ordered: true,
-    doors: [{ side: 'L', a: 160, b: 210, link: true }],
+    doors: [{ side: 'L', a: 160, b: 210, link: true }, { side: 'L', a: 290, b: 340, link: true }],
     decor: [],
     furniture: [
       { id: 'counter', k: 'counter', x: 10, y: 10, w: 250, h: 55, top: 90, build: true, label: 'Counter' },
@@ -78,7 +88,7 @@ const LEVELS = [
       { id: 'spoon', k: 'chime', x: 132, y: 320, r: 6, label: 'Spoon chime', order: 2 },
     ],
     props: [{ k: 'marble', x: 150, y: 50, a: Math.PI, start: true, on: 'counter' }],
-    toolbox: { trebuchet: 1, catapult: 1 },
+    toolbox: { trebuchet: 1, catapult: 1, lift: 1 },
     budget: 150, par: 90,
   },
   {
@@ -98,7 +108,7 @@ const LEVELS = [
       { k: 'marble', x: 24, y: 222, a: 0, start: true },
       { k: 'roll', x: 150, y: 168, label: 'Toilet roll' },
     ],
-    toolbox: { catapult: 1 },
+    toolbox: { catapult: 1, trampoline: 1 },
     budget: 32, par: 26,
   },
   {
@@ -121,15 +131,33 @@ const LEVELS = [
     stairs: [{ x: 18, y: 120, w: 164, h: 180, dir: Math.PI / 2, top: 100, bottom: 0, steps: 8 }],
     targets: [{ id: 'chime', k: 'doorbell', x: 100, y: 446, r: 6, z0: 36, z1: 58, mounted: true, label: 'Doorbell' }],
     props: [{ k: 'marble', x: 26, y: 70, a: 0, start: true }],
-    toolbox: { catapult: 1 },
+    toolbox: { catapult: 1, ramp: 1 },
     budget: 76, par: 60,
   },
+  {
+    id: 'study', name: 'Study', mission: 'Top shelf',
+    goal: 'Knock the trophy off the top step of the bookshelf.', w: 200, h: 340, floor: 'wood',
+    doors: [{ side: 'R', a: 60, b: 110, link: true }],
+    decor: [{ k: 'rug', x: 100, y: 120, w: 80, h: 110 }],
+    furniture: [
+      { id: 'shelf1', k: 'shelfstep', x: 10, y: 40, w: 25, h: 180, top: 30, build: true, label: 'Shelf' },
+      { id: 'shelf2', k: 'shelfstep', x: 35, y: 40, w: 25, h: 180, top: 60, build: true, label: 'Shelf' },
+      { id: 'shelf3', k: 'shelfstep', x: 60, y: 40, w: 25, h: 180, top: 90, build: true, label: 'Top shelf' },
+      { id: 'desk', k: 'desk', x: 120, y: 250, w: 70, h: 80, top: 75, build: true, label: 'Desk' },
+      { k: 'globe', cx: 165, cy: 40, r: 14, top: 70, label: 'Globe' },
+    ],
+    noPlace: [], stairs: [],
+    targets: [{ id: 'trophy', k: 'trophy', x: 72, y: 130, r: 6, on: 'shelf3', label: 'Trophy' }],
+    props: [{ k: 'marble', x: 180, y: 290, a: Math.PI, start: true, on: 'desk' }],
+    toolbox: { lift: 1, trampoline: 1, ramp: 1 },
+    budget: 50, par: 30,
+  },
 ];
-const SANDBOX_TOOLBOX = { catapult: 20, trebuchet: 20 };
+const SANDBOX_TOOLBOX = { catapult: 20, trebuchet: 20, ramp: 20, lift: 20, trampoline: 20 };
 
 // Whole-house sandbox: rooms at offsets, interior doors open.
 const HOUSE_OFFSETS = {
-  bedroom: [0, 0], hallway: [300, 0], bathroom: [500, 0], living: [0, 380], kitchen: [500, 240],
+  bedroom: [0, 0], hallway: [300, 0], bathroom: [500, 0], living: [0, 380], kitchen: [500, 240], study: [300, 470],
 };
 
 // ---------- Geometry helpers ----------
@@ -354,12 +382,25 @@ function supportAt(W, x, y, maxZ, gadgets) {
     if (s.kind === 'target') continue;
     if (s.z1 <= maxZ + 0.5 && s.z1 > best && pointInPoly(x, y, s.poly)) { best = s.z1; L = s.ref && W.tops[s.ref.id] ? s.ref.id : 'x'; }
   }
+  let ref = null;
   if (gadgets) for (const g of gadgets) {
-    const top = g.z + GADGETS[g.k].base;
-    if (top <= maxZ + 0.5 && top > best && pointInPoly(x, y, gadgetPoly(g))) { best = top; L = 'x'; }
+    if (!pointInPoly(x, y, gadgetPoly(g))) continue;
+    const top = gadgetSurface(g, x, y);
+    if (top <= maxZ + 0.5 && top > best) { best = top; L = 'x'; ref = g; }
   }
-  return [best, L];
+  return [best, L, ref];
 }
+// Height of a gadget's top surface at a plan point (ramps slope down toward their front)
+function gadgetSurface(g, x, y) {
+  const S = GADGETS[g.k];
+  if (S.kind === 'ramp') {
+    const u = (x - g.x) * Math.cos(g.a) + (y - g.y) * Math.sin(g.a);
+    const t = Math.max(0, Math.min(1, (u + S.len / 2) / S.len));
+    return g.z + 1.5 + g.power * (1 - t);
+  }
+  return g.z + S.base;
+}
+function gadgetTop(g) { const S = GADGETS[g.k]; return g.z + (S.kind === 'ramp' ? g.power + 2 : S.kind === 'lift' ? 30 : S.base + 4); }
 
 class DomIndex {
   constructor(doms) { this.cell = 10; this.map = new Map(); doms.forEach((d, i) => this.add(d, i)); }
@@ -427,7 +468,7 @@ function placeGadgetProblem(W, doms, g, gadgets, skipG, props) {
   }
   const [bx0, by0, bx1, by1] = polyBox(P);
   for (const s of staticsNear(W, bx0 - 1, by0 - 1, bx1 + 1, by1 + 1)) {
-    if (!zOverlap(z, z + S.base + 4, s.z0, s.z1)) continue;
+    if (!zOverlap(z, gadgetTop({ ...g, z }), s.z0, s.z1)) continue;
     if (satOverlap(P, s.poly, 0.1)) return 'blocked';
   }
   for (const p of (props || W.props)) if ((p.L || 'g') === L && (closestOnPoly(p.x, p.y, P)[2] < p.r + 0.3 || pointInPoly(p.x, p.y, P))) return 'blocked';
@@ -449,7 +490,7 @@ function makeSim(W, doms, props, gadgets) {
       return { x: d.x, y: d.y, a: d.a, c: d.c, L, z: layerZ(W, L, d.x, d.y), st: 0, s: 1, ph: 0, om: 0, he: DH, R: 0, lean: null, fellAt: -1 };
     }),
     rollers: (props || W.props).map(p => makeBall(W, p)),
-    gad: (gadgets || []).map(g => ({ ...g, L: g.L || 'g', z: layerZ(W, g.L || 'g', g.x, g.y), fired: -1, power: g.power || GADGETS[g.k].pdef })),
+    gad: (gadgets || []).map(g => ({ ...g, L: g.L || 'g', z: layerZ(W, g.L || 'g', g.x, g.y), fired: -1, released: false, power: g.power || GADGETS[g.k].pdef })),
     hits: [], hitSet: new Set(), quiet: 0, events: [],
   };
   sim.idx = new DomIndex(sim.d);
@@ -476,13 +517,44 @@ function hitTarget(sim, tg, dx, dy) {
   sim.events.push({ t: sim.t, type: 'target', id: tg.id });
 }
 function fireGadget(sim, g) {
-  if (g.fired >= 0) return;
+  const S = GADGETS[g.k];
+  if (g.fired >= 0 || (S.kind !== 'launcher' && S.kind !== 'lift')) return;
   g.fired = sim.t;
-  const S = GADGETS[g.k], c = Math.cos(g.a), n = Math.sin(g.a);
+  if (S.kind === 'lift') { sim.events.push({ t: sim.t, type: 'lift', g }); return; }
+  const c = Math.cos(g.a), n = Math.sin(g.a);
   const cupX = g.x + c * (S.len / 2 - 3), cupY = g.y + n * (S.len / 2 - 3);
   const b = { k: 'marble', x: cupX, y: cupY, z: g.z + S.armZ, r: 2.2, a: g.a, vx: c * g.power * Math.cos(S.angle), vy: n * g.power * Math.cos(S.angle), vz: g.power * Math.sin(S.angle), moving: true, src: g, born: sim.t, thrown: true };
   sim.rollers.push(b);
   sim.events.push({ t: sim.t, type: 'fire', g });
+}
+// The lift's platform has reached the top: nudge its marble off the front.
+function liftRelease(sim, g) {
+  const S = GADGETS[g.k], c = Math.cos(g.a), n = Math.sin(g.a);
+  g.released = true;
+  const b = { k: 'marble', x: g.x + c * (S.len / 2 - 3), y: g.y + n * (S.len / 2 - 3), z: g.z + S.base + g.power + 2.3, r: 2.2, a: g.a, vx: c * S.push, vy: n * S.push, vz: 0, moving: true, src: g, born: sim.t, thrown: true };
+  sim.rollers.push(b);
+  sim.events.push({ t: sim.t, type: 'release', g });
+  return b;
+}
+// A springboard throws whatever lands on it up and forward along its facing.
+function trampLaunch(sim, b, g) {
+  const S = GADGETS[g.k];
+  b.vx = Math.cos(g.a) * g.power * Math.cos(S.angle); b.vy = Math.sin(g.a) * g.power * Math.cos(S.angle); b.vz = g.power * Math.sin(S.angle);
+  b.x = g.x; b.y = g.y; b.src = g; b.born = sim.t; b.moving = true;
+  g.fired = sim.t;
+  sim.events.push({ t: sim.t, type: 'bounce', g });
+}
+function stepGadgets(sim) {
+  let active = false;
+  for (const g of sim.gad) {
+    const S = GADGETS[g.k];
+    if (g.fired < 0) continue;
+    if (S.kind === 'lift' && !g.released) {
+      active = true;
+      if ((sim.t - g.fired) * S.speed >= g.power) liftRelease(sim, g);
+    } else if (sim.t - g.fired < 0.5) active = true;
+  }
+  return active;
 }
 // Everything the falling domino i touches at its current reach. Returns what it should lean on.
 function contacts(sim, i, allowLean) {
@@ -582,10 +654,11 @@ function stepBall(sim, r, dt) {
   }
   for (const g of sim.gad) {
     if (r.src === g && sim.t - r.born < 0.4) continue;
-    const top = g.z + GADGETS[g.k].base;
-    if (top <= bottom + 1 || g.z >= nz + r.r) continue;
+    const S = GADGETS[g.k];
     const P = gadgetPoly(g), [cx, cy, dist] = closestOnPoly(nx, ny, P);
     if (dist >= r.r && !pointInPoly(nx, ny, P)) continue;
+    const top = S.kind === 'ramp' ? (pointInPoly(nx, ny, P) ? gadgetSurface(g, nx, ny) : gadgetSurface(g, cx, cy)) : g.z + S.base;
+    if (S.kind === 'ramp' ? bottom >= top - 3 : (top <= bottom + 1 || g.z >= nz + r.r)) continue;
     fireGadget(sim, g);
     let mx = nx - cx, my = ny - cy; const Lm = Math.hypot(mx, my) || 1; mx /= Lm; my /= Lm;
     const vn = r.vx * mx + r.vy * my; if (vn < 0) { r.vx -= 1.4 * vn * mx; r.vy -= 1.4 * vn * my; }
@@ -607,18 +680,26 @@ function stepBall(sim, r, dt) {
     r.vx *= 0.4; r.vy *= 0.4;
   }
   // ground contact
-  const [sz] = supportAt(W, nx, ny, r.z - r.r + 2, sim.gad);
+  const [sz, , gref] = supportAt(W, nx, ny, r.z - r.r + 2.5, sim.gad);
+  const GS = gref && GADGETS[gref.k];
   let onGround = false;
-  if (nz - r.r <= sz) {
+  const glued = GS && GS.kind === 'ramp' && r.vz <= 0 && nz - r.r - sz < 4; // stay on the slope instead of skipping down it
+  if (nz - r.r <= sz || glued) {
     nz = sz + r.r;
+    if (GS && GS.kind === 'tramp' && r.vz < -30 && !(r.src === gref && sim.t - r.born < 0.15)) { r.x = nx; r.y = ny; r.z = nz; trampLaunch(sim, r, gref); return; }
     if (r.vz < -70) { r.vz = -r.vz * 0.3; r.vx *= 0.5; r.vy *= 0.5; } else { r.vz = 0; onGround = true; }
   }
   r.x = nx; r.y = ny; r.z = nz;
   if (onGround) {
+    const onRamp = GS && GS.kind === 'ramp';
+    if (onRamp) { // rolling down (or up) the slope: a = 5/7 g sinθ cosθ for a rolling ball
+      const th = Math.atan(gref.power / GS.len), acc = 5 / 7 * GRAV * Math.sin(th) * Math.cos(th);
+      r.vx += Math.cos(gref.a) * acc * dt; r.vy += Math.sin(gref.a) * acc * dt;
+    }
     const s2 = Math.hypot(r.vx, r.vy), fr = r.k === 'roll' ? 0.18 : 0.55;
     const ns = Math.max(0, s2 - (fr * s2 + 6) * dt);
     if (s2 > 0) { r.vx *= ns / s2; r.vy *= ns / s2; }
-    if (ns < 2) { r.moving = false; r.vx = r.vy = 0; }
+    if (ns < 2 && !onRamp) { r.moving = false; r.vx = r.vy = 0; }
   }
   if (r.z < -200) r.moving = false;
 }
@@ -654,7 +735,7 @@ function stepSim(sim, dt) {
       if (d.fz - 1 <= sz) { d.fz = sz; landDomino(sim, d, i); }
     }
   }
-  for (const g of sim.gad) if (g.fired >= 0 && sim.t - g.fired < 0.5) active = true;
+  if (stepGadgets(sim)) active = true;
   for (const r of sim.rollers) { if (!r.moving) continue; active = true; stepBall(sim, r, dt); }
   sim.quiet = active ? 0 : sim.quiet + dt;
 }
@@ -663,11 +744,16 @@ function runToEnd(sim, dt = 1 / 480) { while (!simDone(sim)) stepSim(sim, dt); r
 
 // Where a gadget's marble will go, ignoring dominoes: a list of [x, y, z] points.
 function predictArc(W, g, gadgets) {
+  const S = GADGETS[g.k];
+  if (S.kind === 'ramp') return null;
   const others = gadgets.filter(o => o !== g);
   const sim = makeSim(W, [], [], [g, ...others]);
   const gg = sim.gad[0];
-  fireGadget(sim, gg);
-  const b = sim.rollers[0], pts = [[b.x, b.y, b.z]], dt = 1 / 240;
+  let b;
+  if (S.kind === 'launcher') { fireGadget(sim, gg); b = sim.rollers[0]; }
+  else if (S.kind === 'lift') { gg.fired = 0; b = liftRelease(sim, gg); }
+  else { b = { k: 'marble', x: g.x, y: g.y, z: gg.z + S.base + 2.2, r: 2.2, vx: 0, vy: 0, vz: 0, moving: true }; sim.rollers.push(b); trampLaunch(sim, b, gg); }
+  const pts = [[b.x, b.y, b.z]], dt = 1 / 240;
   let n = 0, airborneDone = false, rollFor = 0;
   while (sim.t < 3 && b.moving) {
     stepBall(sim, b, dt); sim.t += dt; n++;
@@ -773,4 +859,4 @@ function makeStroke(W, doms, base, smart, onPlace, layer, gadgets, props) {
   };
 }
 // ===ENGINE END===
-if (typeof module !== 'undefined') module.exports = { LEVELS, GADGETS, buildWorld, makeSim, startRun, stepSim, runToEnd, makeStroke, placeProblem, placeGadgetProblem, predictArc, floorAt, layerZ, layerAt, supportAt, gadgetPoly, fireGadget, DH, DW, DT };
+if (typeof module !== 'undefined') module.exports = { LEVELS, GADGETS, gadgetSurface, buildWorld, makeSim, startRun, stepSim, runToEnd, makeStroke, placeProblem, placeGadgetProblem, predictArc, floorAt, layerZ, layerAt, supportAt, gadgetPoly, fireGadget, DH, DW, DT };
