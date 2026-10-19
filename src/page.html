@@ -85,6 +85,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
 .labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
 .tlabel { position: absolute; left: 0; top: 0; white-space: nowrap; font-size: 11.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: rgba(22,26,36,.82); color: var(--chalk); border: 1px solid rgba(246,179,60,.6); font-variant-numeric: tabular-nums; }
 .tlabel.hit { border-color: var(--go); color: #c9f2dc; }
+.tlabel.agent { border-color: rgba(120,170,255,.75); color: #d8e6ff; font-weight: 600; }
+.tlabel.agent.cat { border-color: rgba(224,138,60,.85); color: #ffe2c6; }
+.tierhead { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 2px; padding-top: 10px; }
+.tierhead b { font-family: var(--f-display); font-weight: 400; font-size: 18px; }
+.tierhead span { color: var(--muted); font-size: 13px; }
 .camctl { position: absolute; z-index: 3; right: max(10px, env(safe-area-inset-right, 0px)); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px; }
 .iconbtn.cam { background: rgba(33,39,54,.9); border: 1px solid var(--line); width: 42px; height: 42px; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
 .float { position: absolute; left: 50%; transform: translateX(-50%); z-index: 3; display: flex; align-items: center; gap: 6px; background: rgba(33,39,54,.94); border: 1px solid var(--line); border-radius: 999px; padding: 5px 6px 5px 14px; font-size: 13px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.35); max-width: calc(100% - 24px); white-space: nowrap; }
@@ -217,6 +222,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
           <div class="setting">
             <span class="nm">Shaky hands</span><input type="checkbox" class="switch" id="shaky">
             <span class="ds">Like real life, setting a domino down next to a standing one can knock the whole line over. Builders leave a gap every so often and close it last.</span>
+          </div>
+          <div class="setting">
+            <span class="nm">Cat visits every room</span><input type="checkbox" class="switch" id="catAll">
+            <span class="ds">The cat from the Sunroom wanders over now and then while you build and bats a domino out of line. Tap it to shoo it away.</span>
           </div>
           <div class="setting">
             <span class="nm">Slow-motion playback</span><input type="checkbox" class="switch" id="slow">

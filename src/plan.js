@@ -15,6 +15,8 @@ const FLOOR = {
   carpet: { base: '#93a48c', line: 'rgba(40,60,40,.10)' },
   tile: { base: '#e7e1d3', line: 'rgba(60,50,30,.12)' },
   bath: { base: '#cfe2e7', line: 'rgba(30,70,90,.16)' },
+  lavender: { base: '#b9aed3', line: 'rgba(60,40,90,.10)' },
+  terracotta: { base: '#d39a74', line: 'rgba(110,50,20,.18)' },
 };
 
 function drawFloor(c, room, s) {
@@ -32,13 +34,13 @@ function drawFloor(c, room, s) {
         for (let x = x0 + ((row * 53) % 120); x < x0 + w; x += 120) { c.moveTo(x, y); c.lineTo(x, y + bw); }
       }
     }
-  } else if (room.floor === 'tile' || room.floor === 'bath') {
+  } else if (room.floor === 'tile' || room.floor === 'bath' || room.floor === 'terracotta') {
     const g = room.floor === 'tile' ? 30 : 15;
     if (g * s > 4) {
       for (let x = x0; x < x0 + w; x += g) { c.moveTo(x, y0); c.lineTo(x, y0 + h); }
       for (let y = y0; y < y0 + h; y += g) { c.moveTo(x0, y); c.lineTo(x0 + w, y); }
     }
-  } else if (room.floor === 'carpet') {
+  } else if (room.floor === 'carpet' || room.floor === 'lavender') {
     if (s > 1.2) for (let k = -h; k < w; k += 9) { c.moveTo(x0 + k, y0); c.lineTo(x0 + k + h, y0 + h); }
   }
   c.stroke(); c.restore();
@@ -194,6 +196,12 @@ function drawStairs(c, st, s) {
 }
 
 function drawNoPlace(c, n, s) {
+  if (n.cat) { // a round cat bed
+    const cx = n.x + n.w / 2, cy = n.y + n.h / 2;
+    c.fillStyle = '#8f6b9e'; c.beginPath(); c.arc(cx, cy, n.w / 2, 0, 7); c.fill();
+    c.fillStyle = '#d9c6e3'; c.beginPath(); c.arc(cx, cy, n.w / 2 - 4, 0, 7); c.fill();
+    return;
+  }
   c.fillStyle = '#7fb0a5'; rr(c, n.x, n.y, n.w, n.h, 6); c.fill();
   c.save(); rr(c, n.x, n.y, n.w, n.h, 6); c.clip();
   c.strokeStyle = 'rgba(255,255,255,.28)'; c.lineWidth = 1.6; c.beginPath();
@@ -210,6 +218,12 @@ function drawDecor(c, d) {
     c.fillStyle = '#b35a4a'; rr(c, d.x, d.y, d.w, d.h, 4); c.fill();
     c.strokeStyle = '#e7c48f'; c.lineWidth = 2.5; rr(c, d.x + 7, d.y + 7, d.w - 14, d.h - 14, 3); c.stroke();
     c.fillStyle = 'rgba(231,196,143,.5)'; c.beginPath(); c.ellipse(d.x + d.w / 2, d.y + d.h / 2, d.w / 5, d.h / 5, 0, 0, 7); c.fill();
+  } else if (d.k === 'playmat') {
+    const cols = ['#e5483f', '#f2c230', '#3fae6a', '#3a7bd5'], n = 3, cw = d.w / n, ch = d.h / 2;
+    for (let i = 0; i < n; i++) for (let j = 0; j < 2; j++) { c.fillStyle = cols[(i + j * 2) % 4]; c.fillRect(d.x + i * cw, d.y + j * ch, cw, ch); }
+  } else if (d.k === 'dock') {
+    c.fillStyle = '#2b2f38'; rr(c, d.x, d.y, d.w, d.h, 2); c.fill();
+    c.fillStyle = '#4cc38a'; c.beginPath(); c.arc(d.x + d.w / 2, d.y + d.h / 2, 1.6, 0, 7); c.fill();
   } else if (d.k === 'runner') {
     c.fillStyle = '#3f5f8a'; rr(c, d.x, d.y, d.w, d.h, 3); c.fill();
     c.strokeStyle = 'rgba(240,220,170,.6)'; c.lineWidth = 1.5; rr(c, d.x + 5, d.y + 5, d.w - 10, d.h - 10, 2); c.stroke();
@@ -245,6 +259,20 @@ function drawTarget(c, t, hit, s, time, idx, ordered, hitTime) {
     case 'trophy':
       c.fillStyle = '#d9a93a'; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
       c.fillStyle = '#f3d58a'; c.beginPath(); c.arc(x - r * .3, y - r * .3, r * .35, 0, 7); c.fill(); break;
+    case 'musicbox':
+      c.fillStyle = '#c96f8a'; rr(c, x - r, y - r * .8, r * 2, r * 1.6, 1.5); c.fill();
+      c.fillStyle = '#f3d58a'; c.beginPath(); c.arc(x, y, r * .35, 0, 7); c.fill(); break;
+    case 'popcorn':
+      c.fillStyle = '#d6453d'; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+      c.fillStyle = '#fbf3d8'; c.beginPath(); c.arc(x, y, r * .7, 0, 7); c.fill(); break;
+    case 'button':
+      c.fillStyle = '#23262e'; rr(c, x - r, y - r * .7, r * 2, r * 1.4, 2); c.fill();
+      c.fillStyle = '#4cc38a'; c.beginPath(); c.arc(x, y, r * .35, 0, 7); c.fill(); break;
+    case 'watering':
+      c.fillStyle = '#3fae6a'; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+      c.strokeStyle = '#2b7a49'; c.lineWidth = 1.4; c.beginPath(); c.moveTo(x + r * .6, y - r * .3); c.lineTo(x + r * 1.6, y - r * 1.1); c.stroke(); break;
+    case 'windchime':
+      c.fillStyle = '#c4cad3'; for (const [dx, dy] of [[-.5, -.4], [.5, -.3], [0, .5]]) { c.beginPath(); c.arc(x + dx * r, y + dy * r, r * .35, 0, 7); c.fill(); } break;
     case 'duck':
       c.fillStyle = '#f5d02f'; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
       c.beginPath(); c.arc(x + r * .5, y - r * .45, r * .55, 0, 7); c.fill();
@@ -314,6 +342,18 @@ function drawDomino(c, d, s, opts) {
   c.restore();
 }
 
+// Household agents on the plan: route as a dashed line, plus a marker where each starts
+function drawHousehold(c, W, s) {
+  for (const A of W.agents || []) {
+    const pts = A.loop ? [...A.path, A.path[0]] : A.path;
+    c.strokeStyle = A.k === 'baby' ? 'rgba(229,72,63,.75)' : 'rgba(58,123,213,.8)'; c.lineWidth = 2.2; c.setLineDash([4, 3]);
+    c.beginPath(); pts.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.stroke(); c.setLineDash([]);
+    const [x, y] = A.path[0];
+    if (A.k === 'roomba') { c.fillStyle = '#2b2f38'; c.beginPath(); c.arc(x, y, 17, 0, 7); c.fill(); c.fillStyle = '#4cc38a'; c.beginPath(); c.arc(x, y, 2.5, 0, 7); c.fill(); }
+    else { c.fillStyle = '#9cc3e6'; c.beginPath(); c.ellipse(x, y, 9, 12, 0, 0, 7); c.fill(); c.fillStyle = '#f2c9a0'; c.beginPath(); c.arc(x, y - 13, 7, 0, 7); c.fill(); }
+  }
+  if (W.cat) { const [x, y] = W.cat.bed; c.fillStyle = '#e08a3c'; c.beginPath(); c.ellipse(x, y, 9, 7, .4, 0, 7); c.fill(); c.beginPath(); c.arc(x + 6, y - 5, 4.5, 0, 7); c.fill(); }
+}
 function drawScene(c, W, view, o) {
   c.setTransform(DPR, 0, 0, DPR, 0, 0);
   c.fillStyle = '#161a24'; c.fillRect(0, 0, view.cw, view.ch);
@@ -332,6 +372,7 @@ function drawScene(c, W, view, o) {
   const hits = o.hits || [];
   W.targets.forEach((t, i) => { const h = hits.find(x => x.id === t.id); drawTarget(c, t, !!h, s, o.time || 0, i, W.ordered, o.showTimes && h ? h.t : null); });
   for (const p of o.props) drawProp(c, p, s, o.arrows, o.selProp === p);
+  drawHousehold(c, W, s);
   const D = o.doms;
   for (let i = 0; i < D.length; i++) if (!(D[i].st > 0)) drawDomino(c, D[i], s, { sel: o.sel && o.sel.has(i), bad: o.bad && o.sel && o.sel.has(i) });
   for (let i = 0; i < D.length; i++) if (D[i].st > 0) drawDomino(c, D[i], s);

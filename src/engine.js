@@ -22,8 +22,17 @@ const GADGETS = {
   lift: { name: 'Pulley lift', kind: 'lift', len: 18, wid: 16, base: 3, speed: 55, push: 70, pmin: 16, pmax: 140, pdef: 60, pstep: 2, label: 'Height', fmt: cm },
   trampoline: { name: 'Trampoline', kind: 'tramp', len: 26, wid: 26, base: 8, angle: 66 * Math.PI / 180, pmin: 150, pmax: 480, pdef: 300, pstep: 10, label: 'Spring', fmt: cmS },
 };
+// Household agents that move on their own during a run (paths in plan cm, speed in cm/s, start in s).
+//   roomba  drives its loop from t=0; anything it bumps falls over (and chains on), gadgets go off and it reverses
+//   baby    waits, then crawls its lane once; it flattens dominoes (they don't chain on) and plays with gadgets it reaches
+// The cat is separate: it naps on its bed during a run and pounces on any marble rolling within reach.
+const AGENTS = {
+  roomba: { name: 'Robot vacuum', speed: 32, body: [[0, 17]], mode: 'topple' },
+  baby: { name: 'Baby', speed: 24, body: [[0, 10], [13, 8]], mode: 'squash' },
+};
+const CAT = { pounceR: 60, leap: 0.35 };
 // Height of each target's body, for reach checks
-const TARGET_H = { bell: 7, switch: 9, remote: 2, cereal: 22, chime: 11, duck: 12, doorbell: 12, trophy: 18 };
+const TARGET_H = { bell: 7, switch: 9, remote: 2, cereal: 22, chime: 11, duck: 12, doorbell: 12, trophy: 18, musicbox: 9, popcorn: 9, button: 6, watering: 16, windchime: 14 };
 
 // ---------- Rooms ----------
 // furniture: top = height of its top surface; build = dominoes can stand on it.
@@ -152,6 +161,69 @@ const LEVELS = [
     toolbox: { lift: 1, trampoline: 1, ramp: 1 },
     budget: 50, par: 30,
   },
+  // ---- Later levels: the household wakes up ----
+  {
+    id: 'nursery', name: 'Nursery', mission: 'Lullaby', tier: 2,
+    goal: 'Start the music box. The baby flattens anything in its lane.', w: 300, h: 320, floor: 'lavender',
+    doors: [{ side: 'R', a: 240, b: 290, link: true }],
+    decor: [{ k: 'playmat', x: 100, y: 225, w: 60, h: 50 }, { k: 'rug', x: 20, y: 20, w: 90, h: 70 }],
+    furniture: [
+      { id: 'changer', k: 'dresser', x: 10, y: 150, w: 105, h: 50, top: 90, build: true, label: 'Changing table' },
+      { id: 'chest', k: 'toybox', x: 145, y: 150, w: 75, h: 50, top: 45, build: true, label: 'Toy chest' },
+      { id: 'drawers', k: 'dresser', x: 220, y: 150, w: 70, h: 50, top: 82, build: true, label: 'Drawers' },
+      { id: 'crib', k: 'crib', x: 180, y: 10, w: 110, h: 62, top: 95, label: 'Crib' },
+      { id: 'rocker', k: 'armchair', x: 15, y: 245, w: 60, h: 60, top: 30, label: 'Rocking chair' },
+    ],
+    noPlace: [], stairs: [],
+    targets: [{ id: 'musicbox', k: 'musicbox', x: 50, y: 50, r: 6, label: 'Music box' }],
+    props: [{ k: 'marble', x: 278, y: 302, a: Math.PI, start: true }],
+    agents: [{ k: 'baby', path: [[130, 240], [130, 40]], start: 1 }],
+    toolbox: { catapult: 1, trampoline: 1 },
+    budget: 60, par: 20,
+  },
+  {
+    id: 'den', name: 'Den', mission: 'Movie night', tier: 2,
+    goal: 'No marble here: the robot vacuum starts it all. Hit the console button and the popcorn.', w: 320, h: 300, floor: 'wood',
+    doors: [{ side: 'L', a: 250, b: 290, link: true }],
+    decor: [{ k: 'rug', x: 120, y: 125, w: 100, h: 110 }, { k: 'dock', x: 60, y: 255, w: 14, h: 20 }],
+    furniture: [
+      { id: 'sofa', k: 'sofa', x: 10, y: 80, w: 60, h: 160, top: 30, label: 'Sofa' },
+      { id: 'tv', k: 'tv', x: 275, y: 90, w: 35, h: 140, top: 45, label: 'TV stand' },
+      { id: 'side', k: 'nightstand', x: 80, y: 18, w: 50, h: 46, top: 50, build: true, label: 'Side table' },
+      { k: 'plant', cx: 292, cy: 30, r: 16, top: 60, label: 'Plant' },
+    ],
+    noPlace: [], stairs: [],
+    targets: [
+      { id: 'popcorn', k: 'popcorn', x: 105, y: 40, r: 7, on: 'side', label: 'Popcorn' },
+      { id: 'console', k: 'button', x: 292, y: 262, r: 6, label: 'Console button' },
+    ],
+    props: [],
+    agents: [{ k: 'roomba', path: [[95, 265], [250, 265], [250, 95], [160, 95], [95, 95]], loop: true, start: 0, speed: 40 }],
+    toolbox: { catapult: 2, trampoline: 1 },
+    budget: 80, par: 30,
+  },
+  {
+    id: 'sunroom', name: 'Sunroom', mission: 'Water the plants', tier: 2,
+    goal: 'Tip the watering can and ring the wind chime. Mind the cat.', w: 320, h: 280, floor: 'terracotta',
+    doors: [{ side: 'L', a: 30, b: 80, link: true }],
+    decor: [{ k: 'rug', x: 100, y: 205, w: 120, h: 60 }],
+    furniture: [
+      { id: 'side', k: 'nightstand', x: 135, y: 12, w: 50, h: 44, top: 50, build: true, label: 'Side table' },
+      { id: 'stand', k: 'plantstand', x: 252, y: 15, w: 50, h: 50, top: 70, label: 'Plant stand' },
+      { id: 'cattree', k: 'cattree', x: 258, y: 115, w: 48, h: 48, top: 110, label: 'Cat tree' },
+      { id: 'chair', k: 'armchair', x: 18, y: 200, w: 62, h: 62, top: 30, label: 'Wicker chair' },
+      { k: 'plant', cx: 32, cy: 130, r: 16, top: 60, label: 'Fern' },
+    ],
+    noPlace: [], stairs: [],
+    targets: [
+      { id: 'can', k: 'watering', x: 277, y: 40, r: 7, on: 'stand', label: 'Watering can' },
+      { id: 'windchime', k: 'windchime', x: 288, y: 255, r: 6, label: 'Wind chime' },
+    ],
+    props: [{ k: 'marble', x: 24, y: 100, a: 0, start: true }],
+    cat: { bed: [165, 150] },
+    toolbox: { catapult: 1, trampoline: 1, ramp: 1 },
+    budget: 100, par: 75,
+  },
 ];
 const SANDBOX_TOOLBOX = { catapult: 20, trebuchet: 20, ramp: 20, lift: 20, trampoline: 20 };
 
@@ -252,7 +324,7 @@ function wallsFor(L, closedDoors) {
 }
 
 function buildWorld(levelIds, sandbox) {
-  const W = { statics: [], targets: [], props: [], stairs: [], noPlace: [], rooms: [], decor: [], furniture: [], walls: [], doors: [], gaps: [], tops: {}, sandbox, ordered: false, toolbox: {} };
+  const W = { statics: [], targets: [], props: [], stairs: [], noPlace: [], rooms: [], decor: [], furniture: [], walls: [], doors: [], gaps: [], tops: {}, sandbox, ordered: false, toolbox: {}, agents: [], cat: null };
   for (const id of levelIds) {
     const L = LEVELS.find(l => l.id === id);
     const [ox, oy] = sandbox ? HOUSE_OFFSETS[id] : [0, 0];
@@ -298,6 +370,14 @@ function buildWorld(levelIds, sandbox) {
     });
     for (const d of L.decor) W.decor.push({ ...d, x: d.x + ox, y: d.y + oy });
     for (const n of L.noPlace) W.noPlace.push({ ...n, x: n.x + ox, y: n.y + oy, poly: rectPoly(n.x + ox, n.y + oy, n.w, n.h) });
+    if (!sandbox) {
+      for (const a of (L.agents || [])) W.agents.push({ ...a, path: a.path.map(([x, y]) => [x + ox, y + oy]) });
+      if (L.cat) {
+        const [bx, by] = L.cat.bed;
+        W.cat = { bed: [bx + ox, by + oy], r: CAT.pounceR };
+        W.noPlace.push({ x: bx + ox - 16, y: by + oy - 16, w: 32, h: 32, label: 'Cat bed', cat: true, poly: circlePoly(bx + ox, by + oy, 16) });
+      }
+    }
     for (const t of L.targets) {
       const g = { ...t, id: sandbox ? id + ':' + t.id : t.id, x: t.x + ox, y: t.y + oy };
       g.L = t.on ? fid(t.on) : 'g';
@@ -482,6 +562,98 @@ function makeBall(W, p) {
   const z = layerZ(W, p.L || 'g', p.x, p.y) + p.r;
   return { k: p.k, x: p.x, y: p.y, z, r: p.r, a: p.a || 0, start: !!p.start, vx: 0, vy: 0, vz: 0, moving: false, src: null, born: 0, label: p.label };
 }
+// ---------- Household agents ----------
+function pathInfo(A) {
+  const pts = A.loop ? [...A.path, A.path[0]] : A.path, cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  return { pts, cum, total: cum[cum.length - 1] };
+}
+// Position and heading at distance s along an agent's path
+function poseAlong(info, s, loop) {
+  const T = info.total;
+  if (loop) s = ((s % T) + T) % T; else s = Math.max(0, Math.min(T, s));
+  let i = 1; while (i < info.cum.length - 1 && info.cum[i] < s) i++;
+  const [x0, y0] = info.pts[i - 1], [x1, y1] = info.pts[i], L = info.cum[i] - info.cum[i - 1] || 1, f = (s - info.cum[i - 1]) / L;
+  return [x0 + (x1 - x0) * f, y0 + (y1 - y0) * f, Math.atan2(y1 - y0, x1 - x0)];
+}
+// Where an agent would be at time t with nothing in its way (for route markers and edit mode)
+function agentPose(A, t) {
+  const info = A.info || (A.info = pathInfo(A)), sp = A.speed || AGENTS[A.k].speed;
+  return poseAlong(info, Math.max(0, t - (A.start || 0)) * sp, !!A.loop);
+}
+// When an agent stops mattering: the baby once it reaches the end, the roomba after one lap
+function agentUntil(A) { const info = A.info || (A.info = pathInfo(A)); return (A.start || 0) + info.total / (A.speed || AGENTS[A.k].speed); }
+function stepAgents(sim, dt) {
+  const W = sim.W;
+  for (const a of sim.agents) {
+    const S = AGENTS[a.k];
+    if (sim.t < (a.start || 0) || a.sitting) { if (!a.sitting) [a.x, a.y, a.a] = poseAlong(a.info, 0, a.loop); continue; }
+    a.s += a.dir * a.speed * dt;
+    if (!a.loop && (a.s >= a.info.total || a.s <= 0)) { a.s = Math.max(0, Math.min(a.info.total, a.s)); a.sitting = true; }
+    let [x, y, h] = poseAlong(a.info, a.s, a.loop);
+    if (a.dir < 0) h += Math.PI;
+    a.x = x; a.y = y; a.a = h;
+    const fz = floorAt(W, x, y), hx = Math.cos(h), hy = Math.sin(h);
+    for (const [off, cr] of S.body) {
+      const cx = x + hx * off, cy = y + hy * off;
+      // dominoes on the floor
+      for (const j of sim.idx.near(cx, cy, cr + 5)) {
+        const o = sim.d[j];
+        if (o.L !== 'g' || Math.abs(o.z - fz) > 3) continue;
+        if (S.mode === 'topple' ? o.st !== 0 : !(o.st === 0 || o.st === 1 || o.st === 3)) continue;
+        const P = domPoly(o);
+        if (closestOnPoly(cx, cy, P)[2] > cr && !pointInPoly(cx, cy, P)) continue;
+        const dot = hx * Math.cos(o.a) + hy * Math.sin(o.a), sg = dot >= 0 ? 1 : -1;
+        if (S.mode === 'topple') topple(sim, j, sg, 4);
+        else {
+          if (o.st === 0) { o.s = sg; o.fellAt = sim.t; }
+          o.st = 2; o.ph = Math.PI / 2; o.om = 0; o.squashed = true;
+          sim.events.push({ t: sim.t, type: 'squash', i: j });
+        }
+      }
+      // marbles and rolls on the floor get shoved
+      for (const r of sim.rollers) {
+        const dx = r.x - cx, dy = r.y - cy, d = Math.hypot(dx, dy);
+        if (d >= cr + r.r || r.z - r.r - fz > 4) continue;
+        const nx = d > 0.01 ? dx / d : hx, ny = d > 0.01 ? dy / d : hy;
+        r.x = cx + nx * (cr + r.r + 0.2); r.y = cy + ny * (cr + r.r + 0.2);
+        const sp = Math.max(Math.hypot(r.vx, r.vy), S.mode === 'topple' ? 70 : 50);
+        r.vx = nx * sp + hx * a.speed; r.vy = ny * sp + hy * a.speed; r.moving = true;
+      }
+      // gadgets: the roomba bumps them off and turns around; the baby stops to play
+      for (const g of sim.gad) {
+        if (g.L !== 'g' || g.bumpedBy === a) continue;
+        const P = gadgetPoly(g);
+        if (closestOnPoly(cx, cy, P)[2] > cr && !pointInPoly(cx, cy, P)) continue;
+        g.bumpedBy = a; fireGadget(sim, g);
+        sim.events.push({ t: sim.t, type: 'bump', k: a.k });
+        if (S.mode === 'topple') { a.dir = -a.dir; a.s += a.dir * 3; } else a.sitting = true;
+      }
+    }
+  }
+}
+// The cat naps on its bed and pounces on a marble rolling along the floor within reach.
+function stepCat(sim) {
+  const c = sim.cat; if (!c) return false;
+  if (c.st === 'sleep') {
+    for (const r of sim.rollers) {
+      if (!r.moving || r.caught) continue;
+      if (r.z - r.r - floorAt(sim.W, r.x, r.y) > 6) continue; // flying over is fine
+      if (Math.hypot(r.x - c.bx, r.y - c.by) > CAT.pounceR) continue;
+      c.st = 'leap'; c.t0 = sim.t; c.ball = r; c.fx = c.x; c.fy = c.y;
+      sim.events.push({ t: sim.t, type: 'pounce' });
+      break;
+    }
+    return false;
+  }
+  if (c.st === 'leap') {
+    const f = Math.min(1, (sim.t - c.t0) / CAT.leap), r = c.ball;
+    c.x = c.fx + (r.x - c.fx) * f; c.y = c.fy + (r.y - c.fy) * f; c.a = Math.atan2(r.y - c.fy, r.x - c.fx);
+    if (f >= 1) { r.moving = false; r.vx = r.vy = r.vz = 0; r.caught = true; c.st = 'sit'; sim.events.push({ t: sim.t, type: 'caught' }); }
+    return true;
+  }
+  return false;
+}
 function makeSim(W, doms, props, gadgets) {
   const sim = {
     W, t: 0,
@@ -494,6 +666,9 @@ function makeSim(W, doms, props, gadgets) {
     hits: [], hitSet: new Set(), quiet: 0, events: [],
   };
   sim.idx = new DomIndex(sim.d);
+  sim.agents = (W.agents || []).map(A => { const info = pathInfo(A), [x, y, a] = poseAlong(info, 0, !!A.loop); return { ...A, info, speed: A.speed || AGENTS[A.k].speed, s: 0, dir: 1, sitting: false, x, y, a }; });
+  sim.agentsUntil = Math.max(0, ...(W.agents || []).map(agentUntil));
+  sim.cat = W.cat ? { bx: W.cat.bed[0], by: W.cat.bed[1], x: W.cat.bed[0], y: W.cat.bed[1], a: 0, st: 'sleep' } : null;
   return sim;
 }
 function startRun(sim) {
@@ -705,6 +880,7 @@ function stepBall(sim, r, dt) {
 }
 function stepSim(sim, dt) {
   sim.t += dt;
+  if (sim.agents.length) stepAgents(sim, dt);
   const D = sim.d;
   let active = false;
   const k = 3 * GRAV / (2 * DH);
@@ -736,10 +912,16 @@ function stepSim(sim, dt) {
     }
   }
   if (stepGadgets(sim)) active = true;
+  if (stepCat(sim)) active = true;
   for (const r of sim.rollers) { if (!r.moving) continue; active = true; stepBall(sim, r, dt); }
   sim.quiet = active ? 0 : sim.quiet + dt;
 }
-function simDone(sim) { return sim.quiet > 0.35 || sim.t > 45; }
+// Done when everything has settled and either every target is hit or the household has had its say.
+function simDone(sim) {
+  if (sim.t > 45) return true;
+  if (sim.quiet <= 0.35) return false;
+  return sim.t >= sim.agentsUntil || (sim.W.targets.length > 0 && sim.hits.length >= sim.W.targets.length);
+}
 function runToEnd(sim, dt = 1 / 480) { while (!simDone(sim)) stepSim(sim, dt); return sim; }
 
 // Where a gadget's marble will go, ignoring dominoes: a list of [x, y, z] points.
@@ -859,4 +1041,4 @@ function makeStroke(W, doms, base, smart, onPlace, layer, gadgets, props) {
   };
 }
 // ===ENGINE END===
-if (typeof module !== 'undefined') module.exports = { LEVELS, GADGETS, gadgetSurface, buildWorld, makeSim, startRun, stepSim, runToEnd, makeStroke, placeProblem, placeGadgetProblem, predictArc, floorAt, layerZ, layerAt, supportAt, gadgetPoly, fireGadget, DH, DW, DT };
+if (typeof module !== 'undefined') module.exports = { LEVELS, GADGETS, AGENTS, CAT, agentPose, agentUntil, gadgetSurface, buildWorld, makeSim, startRun, stepSim, runToEnd, makeStroke, placeProblem, placeGadgetProblem, predictArc, floorAt, layerZ, layerAt, supportAt, gadgetPoly, fireGadget, DH, DW, DT };

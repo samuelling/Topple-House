@@ -16,6 +16,16 @@ Play it at **https://samuelling.github.io/topple-house/** (once GitHub Pages is 
 | Study | Knock the trophy off the top step of the bookshelf | The marble rolls off the desk. Catch it with a floor line into a pulley lift set to the shelf height, run it down a ramp first, or bounce it straight up with a trampoline |
 | Whole house | Sandbox | All rooms joined, 20 of each gadget |
 
+### Later levels: the household wakes up
+
+| Room | Mission | The twist |
+| --- | --- | --- |
+| Nursery | Start the music box | The baby crawls north through the only gap in the furniture from 1 s, flattening any domino in its lane (flattened dominoes don't pass the fall on). Dominoes can't beat it through the gap, so throw over the divider with the catapult, or put a catapult in the baby's lane and let the baby set it off |
+| Den | Hit the console button and the popcorn | No marble at all. The robot vacuum leaves its dock at 0 s and loops the room; anything it bumps falls over and keeps falling, and gadgets it runs into go off while it turns around. Lay a trigger line on its route and park a catapult where it will bump it |
+| Sunroom | Tip the watering can and ring the wind chime | The cat wanders over every so often while you build and bats a domino out of line (or swipes one away); tap it to shoo it. During a run it naps on its bed and pounces on any marble rolling within 60 cm, so catch the marble early and throw, don't roll, past the bed |
+
+Routes are drawn on the floor with a marker for every second, so you can see when the baby or vacuum will reach any spot. Everything they do is deterministic, so Preview shows exactly what the run will do. The setting **Cat visits every room** brings the cat's build-time mischief to any room, including the whole house.
+
 Each room scores up to three dominoes: finish the job, use par or fewer, and make every domino fall.
 
 ## Controls
@@ -58,6 +68,12 @@ Units are centimetres and seconds. Dominoes are 8 × 4 × 1.2 cm.
 - Marbles and the toilet roll are full 3D balls: gravity, bouncing landings, rolling friction, falling off ledges and down stairs, and full-height walls (the walls are only drawn cut away).
 - Catapults (55°) and trebuchets (58°, launching from 46 cm up) fire when any falling domino or ball hits them. Ramps are sloped support surfaces with a rolling-ball acceleration of 5/7·g·sinθ·cosθ. Lifts rise at 55 cm/s and push their marble off at 70 cm/s. Trampolines relaunch a landing marble at 66°. Every arc preview runs the same ball physics.
 
+### Household agents
+
+`AGENTS` in `src/engine.js` holds the movers: a path (with `loop`), a start time, a speed, a body made of circles and a mode. `topple` (the vacuum) knocks dominoes over so the fall carries on; `squash` (the baby) lays them flat so it doesn't. Both shove marbles, and set off gadgets they bump. The run-time cat is `stepCat`: it pounces on a marble rolling on the floor inside its radius. A run ends once everything has settled and either every target is hit or the agents have finished (the baby reaches the end of its lane, the vacuum completes one lap).
+
+The build-time cat lives in `src/ui.js` (`updateCatAI`): it waits until there are at least six dominoes on its floor, picks one in the middle of a line, walks over with A* around the furniture, and bats it 4–7 cm sideways with a twist, or removes it if there's no room. Undo puts it back.
+
 ### Adding a gadget
 
 Gadgets live in the `GADGETS` registry in `src/engine.js`: footprint, base height, one adjustable setting (`pmin`/`pmax`/`pstep`, a `label` and a `fmt`) and a `kind`. Behaviour hangs off the kind in four places:
@@ -75,6 +91,7 @@ On the UI side, `buildGadgetMesh` builds the model and `animateGadget` moves it 
 node tools/solve.js                          # play scripted solutions through each room
 node tools/aim.js kitchen trebuchet cereal   # map every spot and power that hits a target
 node tools/study.js                          # check the Study's lift, ramp and trampoline routes
+node tools/household.js                      # obvious builds fail, creative ones win, in the later levels
 ```
 
 ## Moving to iPhone
