@@ -2525,9 +2525,15 @@ function panBy(fromS, toS) {
 }
 function clampTarget() {
   const [x0, y0, x1, y1] = G.W.bounds;
-  cam.tx = Math.max(x0 - 60, Math.min(x1 + 60, cam.tx)); cam.tz = Math.max(y0 - 60, Math.min(y1 + 60, cam.tz));
+  cam.tx = Math.max(x0 - 80, Math.min(x1 + 80, cam.tx)); cam.tz = Math.max(y0 - 80, Math.min(y1 + 80, cam.tz));
 }
-function zoomBy(f) { cam.dist = Math.max(cam.minD, Math.min(cam.maxD, cam.dist * f)); applyCamera(); }
+function zoomBy(f, sx, sy) {
+  const nd = Math.max(cam.minD, Math.min(cam.maxD, cam.dist * f)), k = nd / cam.dist;
+  // scale the camera about the point under the fingers, so that point stays put on screen
+  const p = sx != null ? planeAt(sx, sy, cam.ty) : null;
+  if (p) { cam.tx = p[0] + (cam.tx - p[0]) * k; cam.tz = p[1] + (cam.tz - p[1]) * k; clampTarget(); }
+  cam.dist = nd; applyCamera();
+}
 function orbitBy(dx, dy) {
   cam.az -= dx * 0.008; cam.el = Math.max(0.28, Math.min(1.45, cam.el + dy * 0.006));
   applyCamera();
@@ -2546,7 +2552,7 @@ function onMove(e) {
     const [a, b] = [...pointers.values()];
     const d = Math.hypot(a[0] - b[0], a[1] - b[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]), mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     panBy(gesture.mid, mid);
-    if (gesture.d > 10) zoomBy(gesture.d / d);
+    if (gesture.d > 10) zoomBy(gesture.d / d, mid[0], mid[1]);
     let da = ang - gesture.ang; da = Math.atan2(Math.sin(da), Math.cos(da));
     if (Math.abs(da) < 0.5) { cam.az += da; applyCamera(); }
     gesture.d = d; gesture.ang = ang; gesture.mid = mid;
@@ -2683,9 +2689,10 @@ cv.addEventListener('pointercancel', onUp);
 cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('wheel', e => {
   if (!G) return; e.preventDefault();
-  if (e.ctrlKey) zoomBy(Math.exp(e.deltaY * 0.01));
+  const [wx, wy] = localXY(e);
+  if (e.ctrlKey) zoomBy(Math.exp(e.deltaY * 0.01), wx, wy);
   else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) orbitBy(-e.deltaX * .5, 0);
-  else zoomBy(Math.exp(e.deltaY * 0.0012));
+  else zoomBy(Math.exp(e.deltaY * 0.0012), wx, wy);
 }, { passive: false });
 window.addEventListener('keydown', e => {
   if (!G || $('game').hidden) return;
