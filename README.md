@@ -34,9 +34,9 @@ Each room scores up to three dominoes: finish the job, use par or fewer, and mak
 
 ## Music
 
-An original lo-fi chillhop soundtrack played through a 16-bit sound chip, in the spirit of late-90s French space pop: a warm analog-style bass, Rhodes chords, a gliding synth lead with vibrato, a chorused string-machine pad, a thin pulse arpeggio, a dusty boom-bap kit at 84 BPM with swing, vinyl crackle and a dark repeating echo.
+An original lo-fi chillhop soundtrack in the spirit of late-90s French space pop: a warm analog-style bass, strummed Rhodes chords, a gliding synth lead with vibrato, a chorused string-machine pad, a soft bell arpeggio, a dusty boom-bap kit at 84 BPM with swing, vinyl crackle and a dark repeating echo.
 
-Every instrument is synthesised once at startup into a 22 kHz, bit-crushed sample (8–12 bits), the way SNES music was built from small samples, then a lookahead sequencer plays a 20-bar song (two sections plus a drumless breakdown) from them. The mix sounds muffled, like it's coming from the next room, while you build; the filter opens when a preview or run starts, and a short phrase plays when a run wins or misses.
+Every instrument is synthesised once at startup into a sample (band-limited synth waveforms, an FM Rhodes, synthesised drums), then a lookahead sequencer plays a 20-bar song (two sections plus a drumless breakdown) from them. The mix sounds muffled, like it's coming from the next room, while you build; the filter opens when a preview or run starts, and a short phrase plays when a run wins or misses.
 
 Music starts on your first tap (browsers block sound before that). The note button on the menu and in the room header turns it on and off, and the Workbench has a volume slider. It pauses when the tab is hidden.
 

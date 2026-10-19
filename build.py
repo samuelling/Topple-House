@@ -5,7 +5,7 @@ src/page.html  markup and styles, with /*__ENGINE__*/ and /*__UI3D__*/ slots
 src/engine.js  physics, rooms and gadgets (no DOM; also runs under Node for the tools)
 src/plan.js    2D floor-plan drawing used for the room thumbnails
 src/ui.js      three.js scene, touch controls and game flow (/*__PLAN__*/ slot)
-src/music.js   the soundtrack: synthesised 16-bit instruments and a swing sequencer
+src/music.js   the soundtrack: synthesised instruments and a swing sequencer
 """
 from pathlib import Path
 
