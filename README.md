@@ -26,6 +26,7 @@ Each room scores up to three dominoes: finish the job, use par or fewer, and mak
   - **Ramp** (height): a slope with its high end at the back. Marbles roll down it, or up it if they're fast enough.
   - **Pulley lift** (height): hit it and its platform raises a marble to the set height, then nudges it off the front onto a ledge.
   - **Trampoline** (spring): any marble landing on it is thrown up and forward in the direction of its arrow.
+- **Parts box** – a cardboard box in front of each room holds everything you have left: the dominoes standing in rows and small models of the room's gadgets. Parts disappear from it as you build and come back when you erase or undo, and the printed flap keeps count. Tap the dominoes to start building, or tap a gadget to pick it up and place it. Upstairs rooms keep the box on a stool.
 - **Move** – tap to select, hold to grab a whole line, drag the handle to rotate, double-tap to flip.
 - **Erase**, **Undo**.
 - **Preview** plays a test run and stands everything back up. **Run** is the attempt that's scored.

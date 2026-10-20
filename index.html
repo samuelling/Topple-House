@@ -2263,7 +2263,7 @@ function buildRoom3D(W) {
   R.erase.rotation.x = -Math.PI / 2;
   g.add(R.handle, R.handleLine, R.erase);
   // sun covers the whole house
-  const cx = (bx0 + bx1) / 2, cz = (by0 + by1) / 2, rad = Math.hypot(bx1 - bx0, by1 - by0) / 2 + 40;
+  const cx = (bx0 + bx1) / 2, cz = (by0 + by1) / 2, rad = Math.hypot(bx1 - bx0, by1 - by0 + BOX.d + 40) / 2 + 40;
   sun.position.set(cx - rad * .55, 520 + rad * .4, cz - rad * .25); sun.target.position.set(cx, 0, cz);
   const sc = sun.shadow.camera; sc.left = -rad; sc.right = rad; sc.top = rad; sc.bottom = -rad; sc.near = 10; sc.far = 2400; sc.updateProjectionMatrix();
   // target labels
@@ -2272,6 +2272,7 @@ function buildRoom3D(W) {
     const el = document.createElement('div'); el.className = 'tlabel';
     host.append(el); o.label = el;
   }
+  buildPartsBox();
 }
 function buildProps3D() {
   for (const a of R.arrows) R.group.remove(a.obj);
@@ -2320,6 +2321,111 @@ function syncBalls(list, playing) {
 }
 
 // ---------- gadgets ----------
+// ---------- the parts box ----------
+// A cardboard box on the table in front of the room holds what you have left: dominoes standing in rows,
+// and small models of the gadgets. Parts vanish from it as you use them; tap it to pick a part up.
+const BOX = { w: 84, d: 50, h: 16, gadW: 26 };
+function boxSpot() { const [x0, , , y1] = G.W.bounds; return [x0 + BOX.w / 2 + 4, y1 + BOX.d / 2 + 18]; }
+function boxLabel(c, w, h, line1, line2) {
+  c.fillStyle = '#c49a6c'; c.fillRect(0, 0, w, h);
+  for (let i = 0; i < 900; i++) { c.fillStyle = Math.random() < .5 ? 'rgba(120,80,40,.06)' : 'rgba(255,240,210,.06)'; c.fillRect(Math.random() * w, Math.random() * h, 3, 1); }
+  c.strokeStyle = 'rgba(70,40,20,.55)'; c.lineWidth = 4; c.strokeRect(14, 14, w - 28, h - 28);
+  c.fillStyle = 'rgba(60,35,18,.85)'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.font = '700 54px "Dela Gothic One", Impact, sans-serif'; c.fillText('TOPPLE HOUSE', w / 2, h * .38);
+  c.font = '600 34px Figtree, system-ui, sans-serif'; c.fillText(line1, w / 2, h * .66);
+  if (line2) { c.font = '500 26px Figtree, system-ui, sans-serif'; c.fillText(line2, w / 2, h * .84); }
+}
+function buildPartsBox() {
+  const [bx, by] = boxSpot(), W = G.W, fy = W.bounds[3] - WT - 4;
+  // it stands at the height of the room's front floor: on the table, or on a stool for upstairs rooms
+  let e = 0; for (let k = 0; k <= 6; k++) e = Math.max(e, floorAt(W, bx - BOX.w / 2 + BOX.w * k / 6, fy));
+  const grp = new T3.Group(); grp.position.set(bx, e > 4 ? e : -1.2, by); R.group.add(grp);
+  if (e > 4) {
+    const st = new T3.Group(); st.position.set(bx, -1.2, by); R.group.add(st);
+    const wd = mat('#6b4a2e', { roughness: .7 }), top = mat('#8a6440', { roughness: .6 }), H = e + 1.2;
+    box(st, BOX.w + 6, 3, BOX.d + 6, 0, H - 1.5, 0, top);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(st, 4, H - 3, 4, sx * (BOX.w / 2 - 1), (H - 3) / 2, sz * (BOX.d / 2 - 1), wd);
+    for (const sz of [-1, 1]) box(st, BOX.w - 2, 3, 2, 0, H * .35, sz * (BOX.d / 2 - 1), wd);
+  }
+  const kraft = mat('#c49a6c', { roughness: .95 }), inside = mat('#a47a4b', { roughness: 1 }), edge = mat('#b58a5c', { roughness: .95 });
+  const { w, d, h } = BOX, t = 1;
+  grp.userData.boxPick = { dom: true };
+  box(grp, w, 1, d, 0, .5, 0, inside);
+  // the front flap carries the printed label (a canvas we redraw as parts run out)
+  const cvs = document.createElement('canvas'); cvs.width = 640; cvs.height = 200;
+  const tex = new T3.CanvasTexture(cvs); tex.encoding = T3.sRGBEncoding; tex.anisotropy = 4;
+  const front = new T3.MeshStandardMaterial({ map: tex, roughness: .95 });
+  box(grp, w, h, t, 0, h / 2, d / 2 - t / 2, [edge, edge, edge, edge, kraft, inside]);
+  box(grp, w, h, t, 0, h / 2, -d / 2 + t / 2, [edge, edge, edge, edge, inside, kraft]);
+  box(grp, t, h, d - 2 * t, -w / 2 + t / 2, h / 2, 0, [inside, kraft, edge, edge, edge, edge]);
+  box(grp, t, h, d - 2 * t, w / 2 - t / 2, h / 2, 0, [kraft, inside, edge, edge, edge, edge]);
+  box(grp, t, h * .7, d - 2 * t, w / 2 - BOX.gadW, h * .35, 0, inside); // divider
+  // flaps folded open: the back and sides tilt up and out, the front one lies forward so the label shows
+  const flap = (len, wid, x, z, axis, dir, tilt, m = kraft) => {
+    const p = new T3.Group(); p.position.set(x, h, z); grp.add(p);
+    const f = box(p, axis === 'x' ? len : wid, .8, axis === 'x' ? wid : len, 0, 0, 0, m);
+    f.position[axis === 'x' ? 'z' : 'x'] = dir * wid / 2;
+    p.rotation[axis] = axis === 'x' ? -dir * tilt : dir * tilt;
+  };
+  flap(w, d * .42, 0, d / 2, 'x', 1, -.25, [edge, edge, front, kraft, edge, edge]); flap(w, d * .42, 0, -d / 2, 'x', -1, .75);
+  flap(d, 16, -w / 2, 0, 'z', -1, .7); flap(d, 16, w / 2, 0, 'z', 1, .7);
+  // domino slots, packed face to face in rows
+  const x0 = -w / 2 + 3.5, x1 = w / 2 - BOX.gadW - 2.5, z0 = d / 2 - 4.5, z1 = -d / 2 + 4.5;
+  const nx = Math.floor((x1 - x0) / 1.75) + 1, nz = Math.floor((z0 - z1) / 4.9) + 1, cap = nx * nz;
+  const dm = new T3.InstancedMesh(R.domGeo, new T3.MeshStandardMaterial({ roughness: .35 }), cap);
+  dm.castShadow = true; dm.setColorAt(0, new T3.Color(1, 1, 1)); dm.count = 0; dm.frustumCulled = false;
+  dm.userData.boxPick = { dom: true }; grp.add(dm);
+  const minis = new T3.Group(); grp.add(minis);
+  R.box = { grp, dm, cap, nx, nz, x0, z0, minis, cvs, tex, key: '' };
+}
+function syncBox() {
+  if (!R.box) return;
+  const B = R.box, left = Math.max(0, G.budget - G.layout.length);
+  const kinds = Object.keys(G.W.toolbox), gl = kinds.map(k => [k, Math.max(0, gadLeft(k))]);
+  const key = left + '|' + gl.map(x => x.join(':')).join(',');
+  if (B.key === key) return; B.key = key;
+  // dominoes: one per slot (the sandbox's big box shows them in proportion)
+  const n = G.sandbox ? Math.ceil(B.cap * Math.min(1, left / G.budget)) : Math.min(B.cap, left);
+  for (let i = 0; i < n; i++) {
+    const row = Math.floor(i / B.nx), col = i % B.nx;
+    _m.makeTranslation(B.x0 + col * 1.75, 1 + DH / 2, -B.z0 + row * 4.9); B.dm.setMatrixAt(i, _m); // back rows first, so what's left stays in view
+    B.dm.setColorAt(i, PAL_LIN[row % PAL.length]);
+  }
+  B.dm.count = n; B.dm.instanceMatrix.needsUpdate = true; if (B.dm.instanceColor) B.dm.instanceColor.needsUpdate = true;
+  // gadget models, a few of each kind that's left
+  while (B.minis.children.length) B.minis.remove(B.minis.children[0]);
+  const show = []; for (const [k, c] of gl) for (let i = 0; i < Math.min(c, 2); i++) show.push(k);
+  const slot = (BOX.d - 6) / Math.max(1, show.length);
+  show.forEach((k, i) => {
+    const S = GADGETS[k], o = buildGadgetMesh({ k, x: 0, y: 0, a: 0, L: 'g', power: S.pdef || (S.kind === 'lift' ? 40 : 30) });
+    const s = Math.min(.42, (BOX.gadW - 5) / S.wid, (slot - 1.5) / S.len);
+    o.grp.scale.setScalar(s); o.grp.rotation.y = Math.PI / 2;
+    o.grp.position.set(BOX.w / 2 - BOX.gadW / 2 - .5, 1, -BOX.d / 2 + 3 + slot * (i + .5));
+    o.grp.userData.boxPick = { gad: k }; B.minis.add(o.grp);
+  });
+  // the printed label
+  const c = B.cvs.getContext('2d');
+  const gtxt = gl.filter(([, c2]) => c2 > 0).map(([k, c2]) => `${c2} ${GADGETS[k].name.toLowerCase()}${c2 > 1 ? 's' : ''}`).join(' · ');
+  boxLabel(c, B.cvs.width, B.cvs.height, G.sandbox ? `${G.layout.length} dominoes out` : left ? `${left} domino${left === 1 ? '' : 's'} left` : 'out of dominoes', gtxt);
+  B.tex.needsUpdate = true;
+}
+function boxPickAt(sx, sy) {
+  if (!R.box) return null;
+  const hits = rayFrom(sx, sy).intersectObject(R.box.grp, true);
+  for (const h of hits) { for (let o = h.object; o; o = o.parent) if (o.userData && o.userData.boxPick) return o.userData.boxPick; }
+  return null;
+}
+function takeFromBox(p) {
+  if (p.gad) {
+    if (gadLeft(p.gad) <= 0) { toast(`No ${GADGETS[p.gad].name.toLowerCase()}s left in the box.`); return; }
+    setTool('gadget'); G.gadType = p.gad; setTimeout(updateTray, 0);
+    toast(`Tap where the ${GADGETS[p.gad].name.toLowerCase()} should go.`);
+  } else {
+    setTool('build');
+    toast(G.budget - G.layout.length > 0 ? 'Drag across the floor to lay dominoes.' : 'The box is out of dominoes.');
+  }
+}
+
 function buildGadgetMesh(gd) {
   const S = GADGETS[gd.k], grp = new T3.Group();
   const wood = mat('#8a5a36', { roughness: .6 }), dark = mat('#4b3322', { roughness: .7 }), metal = mat('#a3acb6', { metalness: .6, roughness: .35 });
@@ -2511,7 +2617,7 @@ function applyCamera() {
   if (G) G.dirty = true;
 }
 function fitCamera(keepAngles) {
-  const [x0, y0, x1, y1] = G.W.bounds;
+  const [x0, y0, x1, by1] = G.W.bounds, y1 = by1 + BOX.d + 20; // room plus the parts box in front of it
   cam.tx = (x0 + x1) / 2; cam.tz = (y0 + y1) / 2;
   const els = [...G.W.rooms.filter(r => !G.W.stairs.some(s => s.x >= r.x && s.x <= r.x + r.w && s.y >= r.y && s.y <= r.y + r.h)).map(r => r.elev || 0), ...G.W.stairs.flatMap(s => [s.top, s.bottom])];
   const maxE = Math.max(...els), minE = Math.min(...els);
@@ -2761,6 +2867,7 @@ function frame(now) {
     const sim = playing && G.sim;
     syncBalls(sim ? (G.mode === 'rewind' ? G.sim.rollers.slice(0, G.props.length) : G.sim.rollers) : G.props, !!sim && G.mode !== 'rewind');
     syncGadgets(playing);
+    syncBox();
     updateTargets(currentHits(), playing);
     updateHelpers(playing);
     $('stage').classList.toggle('ghost', G.mode === 'preview' || G.mode === 'rewind');
@@ -2946,6 +3053,7 @@ function onDown(e) {
   if (e.pointerType === 'mouse' && (e.button === 1 || spaceDown || e.shiftKey)) { gesture = { type: 'pan', last: [sx, sy] }; return; }
   if (pointers.size === 2) { startTwoFinger(); return; }
   if (pointers.size > 2) return;
+  { const bp = boxPickAt(sx, sy); if (bp) { pointers.delete(e.pointerId); gesture = null; takeFromBox(bp); return; } }
   if (G.tool === 'build') {
     const fp = floorPoint(sx, sy);
     if (!fp) { gesture = { type: 'orbit', last: [sx, sy] }; return; }
