@@ -60,6 +60,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
 .pips { display: inline-flex; gap: 4px; }
 .pips b { width: 8px; height: 15px; border-radius: 2px; border: 1.5px solid rgba(243,237,225,.35); display: block; }
 .pips b.on { background: var(--amber); border-color: var(--amber); }
+.resetrow { border-top: 1px solid var(--line); padding-top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.resetrow span { color: var(--muted); font-size: 13px; flex: 1 1 220px; min-width: 0; }
+.resetrow .pill { padding: 9px 14px; }
+.resetrow .pill.armed { background: var(--stop); color: #fff; }
 .how { border-top: 1px solid var(--line); padding-top: 18px; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 .how div { color: var(--muted); font-size: 13.5px; line-height: 1.45; min-width: 0; }
 .how strong { color: var(--chalk); display: block; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 2px; }
@@ -168,6 +172,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
         <div><strong>Look around</strong>Two fingers pinch to zoom, drag to pan and twist to turn the house. One finger on the empty table orbits. The layers button switches overhead, angled and low views.</div>
         <div><strong>Move</strong>Tap a domino to select it, hold to grab its whole line, drag the gold handle to turn it. On a computer, right-drag orbits and scroll zooms.</div>
         <div><strong>Preview, then run</strong>Preview plays a test and stands everything back up. Run is the attempt that counts.</div>
+      </div>
+      <div class="resetrow">
+        <span id="resetNote">Start over: clears every room's dominoes, gadgets, stars and best scores. Settings stay.</span>
+        <button class="pill warn" id="resetAll">Reset all rooms</button>
       </div>
     </div>
   </section>

@@ -30,6 +30,7 @@ Each room scores up to three dominoes: finish the job, use par or fewer, and mak
 - **Erase**, **Undo**.
 - **Preview** plays a test run and stands everything back up. **Run** is the attempt that's scored.
 - Camera: two fingers pinch to zoom, drag to pan and twist to rotate. One finger on the empty table orbits. The layers button cycles overhead, angled and low views. On a computer, right-drag orbits and scroll zooms.
+- **Reset all rooms** at the bottom of the room menu clears every room's dominoes, gadgets, stars and best scores (tap twice to confirm); settings and music stay. **Clear this room** in the Workbench does the same for one room, and Undo brings it back.
 - Settings: domino spacing, smart spacing down the stairs, slow motion, and **Shaky hands** (off by default), where setting a domino down next to a standing one can knock the line over.
 
 ## Music

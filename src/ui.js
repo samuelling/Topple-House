@@ -1577,8 +1577,26 @@ let clearTimer = 0;
 $('clearBtn').addEventListener('click', () => {
   const b = $('clearBtn');
   if (b.dataset.arm !== '1') { b.dataset.arm = '1'; b.textContent = 'Tap again to clear'; clearTimeout(clearTimer); clearTimer = setTimeout(() => { b.dataset.arm = ''; b.textContent = 'Clear this room'; }, 3000); return; }
-  pushUndo(); G.layout = []; G.sel.clear(); changed();
+  pushUndo(); G.layout = []; G.gadgets = []; G.sel.clear(); G.selGad = -1; changed();
   b.dataset.arm = ''; b.textContent = 'Clear this room'; $('settings').hidden = true; toast('Room cleared. Undo brings it back.');
+});
+
+// ---------- reset everything ----------
+let resetTimer = 0;
+$('resetAll').addEventListener('click', () => {
+  const b = $('resetAll');
+  if (!b.classList.contains('armed')) {
+    b.classList.add('armed'); b.textContent = 'Tap again to reset';
+    clearTimeout(resetTimer); resetTimer = setTimeout(() => { b.classList.remove('armed'); b.textContent = 'Reset all rooms'; }, 3500);
+    return;
+  }
+  clearTimeout(resetTimer);
+  SAVE.layouts = {}; SAVE.stars = {}; SAVE.best = {};
+  clearTimeout(saveTimer); try { localStorage.setItem(KEY, JSON.stringify(SAVE)); } catch (e) { /* storage unavailable */ }
+  b.classList.remove('armed'); b.textContent = 'Reset all rooms';
+  $('resetNote').textContent = 'Every room is back to empty.';
+  setTimeout(() => { $('resetNote').textContent = "Start over: clears every room's dominoes, gadgets, stars and best scores. Settings stay."; }, 4000);
+  renderMenu();
 });
 
 // ---------- menu (plan thumbnails) ----------
