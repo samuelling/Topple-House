@@ -95,6 +95,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
 .float { position: absolute; left: 50%; transform: translateX(-50%); z-index: 3; display: flex; align-items: center; gap: 6px; background: rgba(33,39,54,.94); border: 1px solid var(--line); border-radius: 999px; padding: 5px 6px 5px 14px; font-size: 13px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.35); max-width: calc(100% - 24px); white-space: nowrap; }
 .float.top { top: 10px; }
 .float.bottom { bottom: 12px; }
+#selTxt { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#selTxt.warn { color: var(--stop); }
 .float .pow { display: inline-flex; align-items: center; gap: 4px; }
 .float .pow .pill { width: 32px; padding: 6px 0; font-size: 16px; line-height: 1; }
 .float .pow .sp { min-width: 58px; text-align: center; color: var(--amber); }
@@ -162,7 +164,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
       <div class="rooms" id="rooms"></div>
       <div class="how">
         <div><strong>Build</strong>Drag one finger to lay a line, on the floor or on any tabletop outlined in gold. Start on an existing domino to branch off it. A line that runs off a table edge drops onto whatever is below.</div>
-        <div><strong>Gadgets</strong>Catapults and trebuchets throw a marble when hit. A ramp lets marbles roll down from a ledge. A pulley lift raises its marble to a set height and nudges it off. A trampoline throws any marble that lands on it. Aim with the gold handle, set the power or height, and follow the dotted arc.</div>
+        <div><strong>Gadgets</strong>Catapults and trebuchets throw their marble when anything bumps them, from any side. Drag the gold target to where the marble should land, on the floor or up on the furniture; drop it on a goal and it locks on and turns green. The trebuchet throws twice as far. A ramp lets marbles roll down from a ledge, a pulley lift raises its marble to a set height, and a trampoline throws any marble that lands on it.</div>
         <div><strong>Look around</strong>Two fingers pinch to zoom, drag to pan and twist to turn the house. One finger on the empty table orbits. The layers button switches overhead, angled and low views.</div>
         <div><strong>Move</strong>Tap a domino to select it, hold to grab its whole line, drag the gold handle to turn it. On a computer, right-drag orbits and scroll zooms.</div>
         <div><strong>Preview, then run</strong>Preview plays a test and stands everything back up. Run is the attempt that counts.</div>

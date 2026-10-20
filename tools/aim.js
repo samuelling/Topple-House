@@ -1,28 +1,29 @@
+// Launchers aim themselves: put one anywhere on the floor, aim it at a target, and check the marble hits.
+// Reports, for each room and launcher, how many floor spots within range hit their target.
 const E = require('../src/engine.js');
-// fire one gadget directly and see which powers hit a target
-function windowFor(id, g, target) {
-  const W = E.buildWorld([id], false), ok = [];
-  for (let p = 150; p <= 620; p += 10) {
-    const sim = E.makeSim(W, [], [], [{ ...g, power: p }]);
-    E.fireGadget(sim, sim.gad[0]); E.runToEnd(sim);
-    if (sim.hits.find(h => h.id === target)) ok.push(p);
-  }
-  return ok;
+function tryShot(id, k, x, y, t) {
+  const W = E.buildWorld([id], false);
+  const g = { k, x, y, a: 0, L: 'g' };
+  if (E.placeGadgetProblem(W, [], { ...g, a: Math.atan2(t.y - y, t.x - x) }, [], null)) return null;
+  g.aim = E.snapAim(W, t.x, t.y, t.mounted ? t.z0 : t.base).aim;
+  const sim = E.makeSim(W, [], [], [g]);
+  const P = sim.gad[0].plan;
+  E.fireGadget(sim, sim.gad[0]); E.runToEnd(sim);
+  return { hit: !!sim.hits.find(h => h.id === t.id), blocked: P.blocked, clamped: P.clamped };
 }
-module.exports = { windowFor };
+module.exports = { tryShot };
 if (require.main === module) {
-  const [id, k, target] = process.argv.slice(2);
-  const L = E.LEVELS.find(l => l.id === id), t = L.targets.find(t => t.id === target);
-  const res = [];
-  for (let x = 20; x < L.w; x += 15) for (let y = 20; y < L.h; y += 15) {
-    const a = Math.atan2(t.y - y, t.x - x), g = { k, x, y, a, L: 'g' };
-    const W = E.buildWorld([id], false);
-    if (E.placeGadgetProblem(W, [], g, [g], g)) continue;
-    const w = windowFor(id, g, target);
-    if (w.length) res.push([w.length, x, y, Math.hypot(t.x - x, t.y - y).toFixed(0), w[0] + '-' + w[w.length - 1]]);
+  for (const L of E.LEVELS) for (const k of Object.keys(L.toolbox || {})) {
+    if (E.GADGETS[k].kind !== 'launcher') continue;
+    for (const t of E.buildWorld([L.id], false).targets) {
+      let n = 0, hit = 0, blocked = 0, far = 0;
+      for (let x = 15; x < L.w; x += 12) for (let y = 15; y < L.h; y += 12) {
+        const r = tryShot(L.id, k, x, y, t); if (!r) continue;
+        if (r.clamped) { far++; continue; }
+        n++; if (r.blocked) blocked++; else if (r.hit) hit++;
+      }
+      const clear = n - blocked;
+      console.log(`${L.id.padEnd(9)} ${k.padEnd(9)} -> ${t.id.padEnd(9)} clear shots ${String(clear).padStart(3)}, hit ${String(hit).padStart(3)} (${clear ? Math.round(100 * hit / clear) : 0}%) | blocked ${blocked}, out of range ${far}`);
+    }
   }
-  res.sort((a, b) => b[0] - a[0]);
-  console.log(id, k, '->', target, 'best spots [steps, x, y, dist, powers]:');
-  console.log(res.slice(0, 12).map(r => r.join(' ')).join('\n'));
-  console.log('spots that work:', res.length);
 }

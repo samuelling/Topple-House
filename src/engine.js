@@ -9,15 +9,16 @@ const CHW = DW / 2 + 0.6;            // half-width of a falling domino's contact
 
 // Gadget registry. Every gadget has a footprint (len along its facing, wid across), a base height,
 // one adjustable setting (stored as g.power: pmin..pmax in pstep steps) and a kind that decides its behaviour:
-//   launcher  hit it and the arm flings its marble (power = launch speed, cm/s)
+//   launcher  hit it from any side and the arm flings its marble at the spot it's aimed at (g.aim = [x, y, z]);
+//             it works out its own speed and arc, so the player only chooses where the marble lands
 //   ramp      a slope marbles roll down or up; the high end is at the back (power = rise, cm)
 //   lift      hit it and its platform raises a marble, then nudges it off the front (power = height, cm)
 //   tramp     a springboard: a marble landing on it is thrown up and forward (power = spring speed, cm/s)
 // New kinds (fuses, mousetraps, toy trucks…) plug in through fireGadget, stepGadgets, stepBall and predictArc.
 const cmS = v => (v / 100).toFixed(1) + ' m/s', cm = v => Math.round(v) + ' cm';
 const GADGETS = {
-  catapult: { name: 'Catapult', kind: 'launcher', len: 28, wid: 12, base: 6, armZ: 9, angle: 55 * Math.PI / 180, pmin: 150, pmax: 520, pdef: 300, pstep: 10, label: 'Power', fmt: cmS },
-  trebuchet: { name: 'Trebuchet', kind: 'launcher', len: 42, wid: 18, base: 8, armZ: 46, angle: 58 * Math.PI / 180, pmin: 150, pmax: 620, pdef: 380, pstep: 10, label: 'Power', fmt: cmS },
+  catapult: { name: 'Catapult', kind: 'launcher', len: 28, wid: 12, base: 6, armZ: 9, range: 280, arcs: [55, 60, 50, 65, 45, 70, 40, 75, 35, 30], pdef: 0 },
+  trebuchet: { name: 'Trebuchet', kind: 'launcher', len: 42, wid: 18, base: 8, armZ: 46, range: 520, arcs: [62, 68, 56, 74, 50, 78, 44, 38], pdef: 0 },
   ramp: { name: 'Ramp', kind: 'ramp', len: 60, wid: 11, base: 2, pmin: 10, pmax: 100, pdef: 46, pstep: 2, label: 'Height', fmt: cm },
   lift: { name: 'Pulley lift', kind: 'lift', len: 18, wid: 16, base: 3, speed: 55, push: 70, pmin: 16, pmax: 140, pdef: 60, pstep: 2, label: 'Height', fmt: cm },
   trampoline: { name: 'Trampoline', kind: 'tramp', len: 26, wid: 26, base: 8, angle: 66 * Math.PI / 180, pmin: 150, pmax: 480, pdef: 300, pstep: 10, label: 'Spring', fmt: cmS },
@@ -490,7 +491,11 @@ function makeSim(W, doms, props, gadgets) {
       return { x: d.x, y: d.y, a: d.a, c: d.c, L, z: layerZ(W, L, d.x, d.y), st: 0, s: 1, ph: 0, om: 0, he: DH, R: 0, lean: null, fellAt: -1 };
     }),
     rollers: (props || W.props).map(p => makeBall(W, p)),
-    gad: (gadgets || []).map(g => ({ ...g, L: g.L || 'g', z: layerZ(W, g.L || 'g', g.x, g.y), fired: -1, released: false, power: g.power || GADGETS[g.k].pdef })),
+    gad: (gadgets || []).map(g => {
+      const o = { ...g, L: g.L || 'g', z: layerZ(W, g.L || 'g', g.x, g.y), fired: -1, released: false, power: g.power || GADGETS[g.k].pdef };
+      if (GADGETS[g.k].kind === 'launcher') { o.plan = launchPlan(W, o); o.a = o.plan.a; }
+      return o;
+    }),
     hits: [], hitSet: new Set(), quiet: 0, events: [],
   };
   sim.idx = new DomIndex(sim.d);
@@ -516,14 +521,64 @@ function hitTarget(sim, tg, dx, dy) {
   sim.hitSet.add(tg.id); sim.hits.push({ id: tg.id, t: sim.t, dx: dx || 0, dy: dy || 1 });
   sim.events.push({ t: sim.t, type: 'target', id: tg.id });
 }
+// ---------- aiming ----------
+const BALL_R = 2.2;
+function cupOf(g) { const S = GADGETS[g.k]; return [g.x + Math.cos(g.a) * (S.len / 2 - 3), g.y + Math.sin(g.a) * (S.len / 2 - 3), g.z + S.armZ]; }
+// Does a marble flying along this parabola clip a wall or a piece of furniture before it lands?
+function arcBlocked(W, x0, y0, z0, vx, vy, vz, T) {
+  const N = 48;
+  for (let k = 2; k < N * .9; k++) {
+    const t = T * k / N, x = x0 + vx * t, y = y0 + vy * t, z = z0 + vz * t - GRAV * t * t / 2;
+    if (z - BALL_R < floorAt(W, x, y) - .5) return true;
+    for (const s of staticsNear(W, x - 3, y - 3, x + 3, y + 3)) {
+      if (s.kind === 'target') continue;
+      if (z - BALL_R < s.z1 && z + BALL_R > s.z0 && (pointInPoly(x, y, s.poly) || closestOnPoly(x, y, s.poly)[2] < BALL_R)) return true;
+    }
+  }
+  return false;
+}
+// Work out the throw for a launcher: it faces its aim point and picks the speed and arc that land the
+// marble there, preferring a clear arc. Too far away and it throws as far as it can in that direction.
+function launchPlan(W, g) {
+  const S = GADGETS[g.k];
+  let aim = g.aim || [g.x + Math.cos(g.a) * 100, g.y + Math.sin(g.a) * 100, floorAt(W, g.x + Math.cos(g.a) * 100, g.y + Math.sin(g.a) * 100)];
+  const a = Math.atan2(aim[1] - g.y, aim[0] - g.x);
+  const gg = { ...g, a }, [x0, y0, z0] = cupOf(gg);
+  let dx = aim[0] - x0, dy = aim[1] - y0, D = Math.hypot(dx, dy), clamped = false;
+  if (D > S.range) { dx *= S.range / D; dy *= S.range / D; D = S.range; clamped = true; aim = [x0 + dx, y0 + dy, aim[2]]; }
+  D = Math.max(D, 8);
+  const ux = dx / (Math.hypot(dx, dy) || 1), uy = dy / (Math.hypot(dx, dy) || 1), h = aim[2] + BALL_R - z0;
+  let best = null;
+  for (const deg of S.arcs) {
+    const th = deg * Math.PI / 180, den = 2 * Math.cos(th) ** 2 * (D * Math.tan(th) - h);
+    if (den <= 0) continue;
+    const v = Math.sqrt(GRAV * D * D / den), vh = v * Math.cos(th), vz = v * Math.sin(th), T = D / vh;
+    const plan = { a, v: [ux * vh, uy * vh, vz], from: [x0, y0, z0], aim, clamped, blocked: arcBlocked(W, x0, y0, z0, ux * vh, uy * vh, vz, T) };
+    if (!plan.blocked) return plan;
+    if (!best) best = plan;
+  }
+  return best || { a, v: [ux * 150, uy * 150, 250], from: [x0, y0, z0], aim, clamped, blocked: true };
+}
+// Snap an aim point onto a target when it's dropped close to one
+function snapAim(W, x, y, z) {
+  let best = null, bd = 18;
+  for (const t of W.targets) {
+    const d = Math.hypot(t.x - x, t.y - y);
+    if (d >= bd) continue;
+    if (!t.mounted && Math.abs(t.base - z) > 20) continue;
+    bd = d; best = t;
+  }
+  if (!best) return { aim: [x, y, z], target: null };
+  const az = best.mounted ? (best.z0 + best.z1) / 2 - BALL_R : best.z0;
+  return { aim: [best.x, best.y, az], target: best };
+}
 function fireGadget(sim, g) {
   const S = GADGETS[g.k];
   if (g.fired >= 0 || (S.kind !== 'launcher' && S.kind !== 'lift')) return;
   g.fired = sim.t;
   if (S.kind === 'lift') { sim.events.push({ t: sim.t, type: 'lift', g }); return; }
-  const c = Math.cos(g.a), n = Math.sin(g.a);
-  const cupX = g.x + c * (S.len / 2 - 3), cupY = g.y + n * (S.len / 2 - 3);
-  const b = { k: 'marble', x: cupX, y: cupY, z: g.z + S.armZ, r: 2.2, a: g.a, vx: c * g.power * Math.cos(S.angle), vy: n * g.power * Math.cos(S.angle), vz: g.power * Math.sin(S.angle), moving: true, src: g, born: sim.t, thrown: true };
+  const P = g.plan || (g.plan = launchPlan(sim.W, g));
+  const b = { k: 'marble', x: P.from[0], y: P.from[1], z: P.from[2], r: BALL_R, a: P.a, vx: P.v[0], vy: P.v[1], vz: P.v[2], moving: true, src: g, born: sim.t, thrown: true };
   sim.rollers.push(b);
   sim.events.push({ t: sim.t, type: 'fire', g });
 }
@@ -859,4 +914,4 @@ function makeStroke(W, doms, base, smart, onPlace, layer, gadgets, props) {
   };
 }
 // ===ENGINE END===
-if (typeof module !== 'undefined') module.exports = { LEVELS, GADGETS, gadgetSurface, buildWorld, makeSim, startRun, stepSim, runToEnd, makeStroke, placeProblem, placeGadgetProblem, predictArc, floorAt, layerZ, layerAt, supportAt, gadgetPoly, fireGadget, DH, DW, DT };
+if (typeof module !== 'undefined') module.exports = { launchPlan, snapAim, LEVELS, GADGETS, gadgetSurface, buildWorld, makeSim, startRun, stepSim, runToEnd, makeStroke, placeProblem, placeGadgetProblem, predictArc, floorAt, layerZ, layerAt, supportAt, gadgetPoly, fireGadget, DH, DW, DT };

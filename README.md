@@ -21,8 +21,8 @@ Each room scores up to three dominoes: finish the job, use par or fewer, and mak
 ## Controls
 
 - **Build** – drag one finger to lay a line on the floor or on any tabletop outlined in gold. Start on an existing domino to branch off it.
-- **Gadgets** – pick one from the tray and tap to place it, then aim it with the gold handle and adjust its setting with − and +. The dotted arc shows where its marble will go.
-  - **Catapult / trebuchet** (power): hit it with a domino or a marble and it throws the marble in its cup. The trebuchet throws from higher up and reaches counters.
+- **Gadgets** – pick one from the tray and tap to place it. Catapults and trebuchets aim by their gold landing target; the others turn with the gold handle and adjust with − and +. The dotted arc shows where the marble will go.
+  - **Catapult / trebuchet**: bump it from any side with a domino or a marble and it throws the marble in its cup. You don't set power or angle: drag the gold target to where the marble should land, on the floor or on any furniture top, and it turns to face that spot and works out its own throw. Drop the target on a goal and it locks on (green); red means it's out of range or something's in the way. The catapult reaches 2.8 m, the trebuchet 5.2 m.
   - **Ramp** (height): a slope with its high end at the back. Marbles roll down it, or up it if they're fast enough.
   - **Pulley lift** (height): hit it and its platform raises a marble to the set height, then nudges it off the front onto a ledge.
   - **Trampoline** (spring): any marble landing on it is thrown up and forward in the direction of its arrow.
@@ -65,7 +65,7 @@ Units are centimetres and seconds. Dominoes are 8 × 4 × 1.2 cm.
 - A falling domino is a rigid slab pivoting on its front bottom edge (φ̈ = 3g/2H · sin φ). Its top edge sweeps forward, and anything it meets within a strip slightly wider than the domino gets toppled, nudged or triggered. Chains run at about 0.9 m/s, and gaps longer than a domino is tall break them.
 - Surfaces are layers: the floor (including the stepped stairs) plus every furniture top. Dominoes only interact with others on the same layer. On a tabletop, once a falling domino's centre of mass passes the edge it tumbles off as a free body and knocks whatever it lands on.
 - Marbles and the toilet roll are full 3D balls: gravity, bouncing landings, rolling friction, falling off ledges and down stairs, and full-height walls (the walls are only drawn cut away).
-- Catapults (55°) and trebuchets (58°, launching from 46 cm up) fire when any falling domino or ball hits them. Ramps are sloped support surfaces with a rolling-ball acceleration of 5/7·g·sinθ·cosθ. Lifts rise at 55 cm/s and push their marble off at 70 cm/s. Trampolines relaunch a landing marble at 66°. Every arc preview runs the same ball physics.
+- Catapults and trebuchets (launching from 9 and 46 cm up) fire when any falling domino or ball hits them. Each throw is solved from the aim point: the launcher faces it and picks the arc (from a preferred list of angles) whose parabola lands the marble there without clipping walls or furniture, then the marble flies with the normal ball physics. Ramps are sloped support surfaces with a rolling-ball acceleration of 5/7·g·sinθ·cosθ. Lifts rise at 55 cm/s and push their marble off at 70 cm/s. Trampolines relaunch a landing marble at 66°. Every arc preview runs the same ball physics.
 
 ### Adding a gadget
 
@@ -82,7 +82,7 @@ On the UI side, `buildGadgetMesh` builds the model and `animateGadget` moves it 
 
 ```
 node tools/solve.js                          # play scripted solutions through each room
-node tools/aim.js kitchen trebuchet cereal   # map every spot and power that hits a target
+node tools/aim.js                             # from every floor spot, aim each launcher at each goal and count hits
 node tools/study.js                          # check the Study's lift, ramp and trampoline routes
 ```
 

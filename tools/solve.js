@@ -37,16 +37,24 @@ function scan(id, strokes, gadgetsFn, label) {
   return last;
 }
 module.exports = { build, run, scan, E };
+// Aim a launcher at a level target the way the game does when you drop the gold target on it
+function aimAt(id, tid) { const W = E.buildWorld([id], false), t = W.targets.find(t => t.id === tid); return E.snapAim(W, t.x, t.y, t.mounted ? t.z0 : t.base).aim; }
+function check(id, strokes, gadgets, label) {
+  const { sim, doms } = run(id, strokes, gadgets), L = E.LEVELS.find(l => l.id === id);
+  let ok = sim.hits.length === L.targets.length;
+  if (ok && L.ordered) { const t = L.targets.slice().sort((a, b) => a.order - b.order).map(t => sim.hits.find(h => h.id === t.id).t); for (let i = 1; i < t.length; i++) if (t[i] < t[i - 1]) ok = false; }
+  console.log(`${ok ? 'WIN ' : 'fail'} ${label || id}: ${doms.length} dominoes, hits ${sim.hits.map(h => h.id + '@' + h.t.toFixed(1)).join(' ') || '-'}`);
+  return ok;
+}
+module.exports.check = check; module.exports.aimAt = aimAt;
 if (require.main === module) {
-  // Bedroom: line from the marble to a catapult aimed at the nightstand
-  const r = scan('bedroom', [{ pts: [[34, 352], [80, 330], [110, 300], [125, 250], [125, 229]] }],
-    p => [{ k: 'catapult', x: 125, y: 215, a: -Math.PI / 2, L: 'g', power: p }]);
-  console.log('  fired:', r.sim.gad.map(g => g.fired.toFixed(2)), 'balls', r.sim.rollers.map(b => [b.x.toFixed(0), b.y.toFixed(0), b.z.toFixed(0)].join('/')));
-  scan('living', [
+  check('bedroom', [{ pts: [[34, 352], [80, 330], [110, 300], [125, 255], [125, 229]] }], [{ k: 'catapult', x: 125, y: 215, a: 0, L: 'g', aim: aimAt('bedroom', 'bell') }], 'bedroom: line into a catapult aimed at the bell');
+  check('living', [
     { pts: [[150, 392], [150, 340], [120, 320], [95, 290], [92, 140], [80, 80], [64, 50]] },
     { pts: [[150, 345], [175, 330], [205, 322], [236, 314]] }],
-    p => [{ k: 'catapult', x: 232, y: 300, a: Math.atan2(200 - 300, 165 - 232), L: 'g', power: p }]);
-  scan('bathroom', [{ pts: [[30, 222], [90, 205], [135, 200], [148, 190], [150, 175]] }], p => [], 'bathroom (roll)');
-  scan('hallway', [{ pts: [[33, 70], [70, 72], [96, 100], [100, 130], [100, 300], [100, 345]] }],
-    p => [{ k: 'catapult', x: 100, y: 365, a: Math.PI / 2, L: 'g', power: p }]);
+    [{ k: 'catapult', x: 232, y: 300, a: 0, L: 'g', aim: aimAt('living', 'remote') }], 'living: switch line + catapult at the remote');
+  check('kitchen', [{ L: 'counter', pts: [[142, 50], [95, 50], [88, 57], [88, 66]] }, { pts: [[88, 84], [88, 150], [75, 200], [58, 226]] }, { pts: [[88, 120], [108, 136], [106, 170], [100, 250], [100, 300], [118, 318], [126, 320]] }],
+    [{ k: 'trebuchet', x: 50, y: 240, a: 0, L: 'g', aim: aimAt('kitchen', 'cereal') }], 'kitchen: counter drop, trebuchet at the cereal, then the spoon');
+  check('bathroom', [{ pts: [[30, 222], [90, 205], [135, 200], [148, 190], [150, 175]] }], [], 'bathroom: toilet roll across the mat');
+  check('hallway', [{ pts: [[33, 70], [70, 72], [96, 100], [100, 130], [100, 300], [100, 345]] }], [{ k: 'catapult', x: 100, y: 365, a: 0, L: 'g', aim: aimAt('hallway', 'chime') }], 'hallway: down the stairs into a catapult at the doorbell');
 }

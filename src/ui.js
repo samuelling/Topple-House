@@ -24,8 +24,9 @@ function persist() {
 }
 const packLayout = l => l.map(d => [Math.round(d.x * 10) / 10, Math.round(d.y * 10) / 10, Math.round(d.a * 1000) / 1000, d.c, d.g, d.L && d.L !== 'g' ? d.L : 0]);
 const unpackLayout = a => (a || []).map(([x, y, ang, c, g, L]) => ({ x, y, a: ang, c: c || 0, g: g || 0, L: L || 'g' }));
-const packGad = l => l.map(g => [g.k, Math.round(g.x * 10) / 10, Math.round(g.y * 10) / 10, Math.round(g.a * 1000) / 1000, g.L || 'g', g.power]);
-const unpackGad = a => (a || []).map(([k, x, y, ang, L, power]) => ({ k, x, y, a: ang, L: L || 'g', power: power || GADGETS[k].pdef }));
+const r1 = v => Math.round(v * 10) / 10;
+const packGad = l => l.map(g => [g.k, r1(g.x), r1(g.y), Math.round(g.a * 1000) / 1000, g.L || 'g', g.power, ...(g.aim ? g.aim.map(r1) : [])]);
+const unpackGad = a => (a || []).map(([k, x, y, ang, L, power, ax, ay, az]) => ({ k, x, y, a: ang, L: L || 'g', power: power || GADGETS[k].pdef, aim: ax != null ? [ax, ay, az] : null }));
 
 let G = null;
 let DPR = 1;
@@ -527,7 +528,10 @@ function buildGadgetMesh(gd) {
   const ammoAt = (parent, x, y) => { const m = new T3.Mesh(new T3.SphereGeometry(2.2, 16, 12), MARBLE_MAT()); m.position.set(x, y, 0); parent.add(m); o.ammo = m; };
   if (S.kind === 'launcher') {
     box(grp, S.len, S.base, S.wid, 0, S.base / 2, 0, dark);
-    box(grp, 4.5, 1.2, S.wid - 3, -S.len / 2 + 3, S.base + .6, 0, mat('#d4573f', { roughness: .5 })); // trigger pad
+    // a bold arrow on the base shows which way it throws
+    const sh = new T3.Shape(); sh.moveTo(S.len / 2 - 1, 0); sh.lineTo(S.len / 2 - 9, S.wid / 2 - 1.5); sh.lineTo(S.len / 2 - 9, 2); sh.lineTo(-S.len / 2 + 3, 2); sh.lineTo(-S.len / 2 + 3, -2); sh.lineTo(S.len / 2 - 9, -2); sh.lineTo(S.len / 2 - 9, -S.wid / 2 + 1.5); sh.lineTo(S.len / 2 - 1, 0);
+    const arrow = new T3.Mesh(new T3.ShapeGeometry(sh), new T3.MeshStandardMaterial({ color: lin('#f6b33c'), emissive: lin('#f6b33c'), emissiveIntensity: .35, side: T3.DoubleSide }));
+    arrow.rotation.x = -Math.PI / 2; arrow.position.y = S.base + .15; grp.add(arrow);
     const arm = new T3.Group(); grp.add(arm);
     const cupAt = (x, y) => {
       const cup = new T3.Mesh(new T3.SphereGeometry(3.2, 14, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), metal); cup.position.set(x, y, 0); arm.add(cup);
@@ -613,6 +617,21 @@ function syncGadgets(playing) {
     R.gadMeshes.forEach(o => R.gadGroup.add(o.grp));
     // trajectory previews
     while (R.arcGroup.children.length) { const c = R.arcGroup.children.pop(); c.geometry && c.geometry.dispose(); }
+    while (R.reticles && R.reticles.children.length) R.reticles.remove(R.reticles.children[0]);
+    if (!R.reticles) { R.reticles = new T3.Group(); R.group.add(R.reticles); }
+    G.gadgets.forEach((gd, i) => {
+      if (!isLauncher(gd) || !gd.aim) return;
+      // the landing target: green when locked onto a target, red when the throw can't make it
+      const st = aimStatus(gd), sel = G.selGad === i, col = lin(st.bad ? '#ef6a5a' : st.locked ? '#4cc38a' : '#f6b33c');
+      const grp = new T3.Group(); grp.position.set(gd.aim[0], gd.aim[2] + .5, gd.aim[1]);
+      const m = new T3.MeshBasicMaterial({ color: col, transparent: true, opacity: sel ? 1 : .8, depthTest: false, side: T3.DoubleSide });
+      const r0 = st.locked ? 9 : 7;
+      const ring = new T3.Mesh(new T3.RingGeometry(r0, r0 + 1.6, 36), m); ring.rotation.x = -Math.PI / 2; grp.add(ring);
+      for (let k = 0; k < 4; k++) { const tick = new T3.Mesh(new T3.PlaneGeometry(4, 1.2), m); tick.rotation.x = -Math.PI / 2; tick.rotation.z = k * Math.PI / 2; tick.position.set(Math.cos(k * Math.PI / 2) * (r0 + 3.5), 0, -Math.sin(k * Math.PI / 2) * (r0 + 3.5)); grp.add(tick); }
+      const dot = new T3.Mesh(new T3.CircleGeometry(1.4, 16), m); dot.rotation.x = -Math.PI / 2; grp.add(dot);
+      grp.children.forEach(c => { c.renderOrder = 6; });
+      grp.userData = { sel, i }; R.reticles.add(grp);
+    });
     G.gadgets.forEach((gd, i) => {
       const arc = predictArc(G.W, gd, G.gadgets);
       if (!arc) return;
@@ -620,12 +639,14 @@ function syncGadgets(playing) {
       const sel = G.selGad === i;
       const ln = new T3.Line(new T3.BufferGeometry().setFromPoints(pts), new T3.LineDashedMaterial({ color: lin(sel ? '#ffd36b' : '#f6b33c'), dashSize: 2.5, gapSize: 2.5, transparent: true, opacity: sel ? 1 : .6, depthTest: false }));
       ln.computeLineDistances(); ln.renderOrder = 5; R.arcGroup.add(ln);
+      if (isLauncher(gd)) return;
       const end = pts[pts.length - 1];
       const ring = new T3.Mesh(new T3.RingGeometry(2.6, 3.6, 24), new T3.MeshBasicMaterial({ color: lin(sel ? '#ffd36b' : '#f6b33c'), transparent: true, opacity: sel ? 1 : .6, depthTest: false }));
       ring.rotation.x = -Math.PI / 2; ring.position.set(end.x, end.y - 1.8, end.z); ring.renderOrder = 5; R.arcGroup.add(ring);
     });
   }
   R.arcGroup.visible = !playing;
+  if (R.reticles) { R.reticles.visible = !playing; for (const r of R.reticles.children) { const k = r.userData.sel ? 1 + Math.sin(G.time * 5) * .08 : 1; r.scale.set(k, 1, k); } }
   G.gadgets.forEach((gd, i) => {
     const o = R.gadMeshes[i]; if (!o) return;
     o.grp.position.set(gd.x, layerZ(G.W, gd.L || 'g', gd.x, gd.y), gd.y); o.grp.rotation.y = -gd.a;
@@ -736,6 +757,7 @@ function openRoom(id) {
   const props = W.props.map((p, i) => savedProps && savedProps[i] ? { ...p, x: savedProps[i][0], y: savedProps[i][1], a: savedProps[i][2] } : { ...p });
   const layout = unpackLayout(SAVE.layouts[id]);
   const gadgets = unpackGad(SAVE.layouts[id + ':gad']);
+  for (const g of gadgets) if (GADGETS[g.k].kind === 'launcher' && !g.aim) g.aim = [g.x + Math.cos(g.a) * 100, g.y + Math.sin(g.a) * 100, layerZ(W, 'g', g.x + Math.cos(g.a) * 100, g.y + Math.sin(g.a) * 100)];
   G = {
     id, sandbox, W, L, props, layout, gadgets, gadVer: 1, selGad: -1, gadType: Object.keys(W.toolbox)[0] || 'catapult',
     budget: sandbox ? 3000 : L.budget,
@@ -839,11 +861,11 @@ function updateSelBar() {
   const bar = $('selBar');
   if (!G || G.mode !== 'edit' || G.tool !== 'move' || (!G.sel.size && G.selProp < 0 && G.selGad < 0)) { bar.hidden = true; $('powBox').hidden = true; return; }
   bar.hidden = false;
-  $('powBox').hidden = G.selGad < 0;
+  $('powBox').hidden = G.selGad < 0 || isLauncher(G.gadgets[G.selGad]);
   if (G.selGad >= 0) {
     const g = G.gadgets[G.selGad];
-    $('selTxt').textContent = `${GADGETS[g.k].name} · ${GADGETS[g.k].label.toLowerCase()}`;
-    $('powVal').textContent = GADGETS[g.k].fmt(g.power);
+    if (isLauncher(g)) { const st = aimStatus(g); $('selTxt').textContent = st.text; $('selTxt').classList.toggle('warn', st.bad); }
+    else { $('selTxt').textContent = `${GADGETS[g.k].name} · ${GADGETS[g.k].label.toLowerCase()}`; $('powVal').textContent = GADGETS[g.k].fmt(g.power); $('selTxt').classList.remove('warn'); }
     $('flipBtn').hidden = true; $('testBtn').hidden = false; $('delBtn').hidden = false;
   } else if (G.selProp >= 0) {
     $('selTxt').textContent = G.props[G.selProp].k === 'marble' ? 'Starting marble' : 'Toilet roll';
@@ -906,7 +928,7 @@ function updateTargets(hits, playing) {
 }
 function updateHelpers(playing) {
   R.topOutlines.visible = !playing && (G.tool === 'build' || G.tool === 'gadget');
-  const showH = !playing && G.tool === 'move' && (G.sel.size || G.selProp >= 0 || G.selGad >= 0);
+  const showH = !playing && G.tool === 'move' && (G.sel.size || G.selProp >= 0 || G.selGad >= 0) && !!handlePos();
   R.handle.visible = R.handleLine.visible = !!showH;
   if (showH) {
     const [hx, hy, cx, cy] = handlePos();
@@ -1099,7 +1121,7 @@ function handlePos() {
   const e = selZ() + 12;
   const px = handleRadiusWorld(cx, e, cy) / 9; // cm per pixel
   let rad = 34 * px;
-  if (G.selGad >= 0) { const g = G.gadgets[G.selGad]; rad = Math.max(rad, GADGETS[g.k].len / 2 + 12 * px); return [cx + Math.cos(g.a) * rad, cy + Math.sin(g.a) * rad, cx, cy]; }
+  if (G.selGad >= 0) { const g = G.gadgets[G.selGad]; if (isLauncher(g)) return null; rad = Math.max(rad, GADGETS[g.k].len / 2 + 12 * px); return [cx + Math.cos(g.a) * rad, cy + Math.sin(g.a) * rad, cx, cy]; }
   if (G.sel.size > 1) for (const i of G.sel) rad = Math.max(rad, Math.hypot(G.layout[i].x - cx, G.layout[i].y - cy) + 16 * px);
   const ang = G.selProp >= 0 ? G.props[G.selProp].a : (G.sel.size === 1 ? G.layout[[...G.sel][0]].a : -Math.PI / 2);
   const hang = G.sel.size > 1 ? -Math.PI / 2 : ang;
@@ -1143,7 +1165,17 @@ function onDown(e) {
   } else if (G.tool === 'erase') {
     pushUndo(); gesture = { type: 'erase', removed: 0 }; eraseAt(sx, sy);
   } else if (G.tool === 'move') {
-    if (G.sel.size || G.selProp >= 0 || G.selGad >= 0) {
+    // the gold landing targets of catapults and trebuchets can be dragged directly
+    { const order = G.gadgets.map((g, i) => i).sort((a, b) => (b === G.selGad) - (a === G.selGad));
+      for (const i of order) {
+        const g = G.gadgets[i]; if (!isLauncher(g) || !g.aim) continue;
+        const [px, py, z] = toScreen(g.aim[0], g.aim[2] + 1, g.aim[1]);
+        if (z < 1 && Math.hypot(px - sx, py - sy) < 30) {
+          pushUndo(); G.sel.clear(); G.selProp = -1; G.selGad = i; G.gadVer++; updateSelBar();
+          gesture = { type: 'aim', gi: i, moved: false, orig: snapshotSel() }; return;
+        }
+      } }
+    if ((G.sel.size || G.selProp >= 0 || G.selGad >= 0) && handlePos()) {
       const [hx, hy, cx, cy] = handlePos(), he = selZ() + 12;
       const [px, py] = toScreen(hx, he, hy);
       if (Math.hypot(px - sx, py - sy) < 26) {
@@ -1169,9 +1201,52 @@ function onDown(e) {
   }
 }
 function snapshotSel() {
-  if (G.selGad >= 0) { const g = G.gadgets[G.selGad]; return { gad: [g.x, g.y, g.a], L: g.L }; }
+  if (G.selGad >= 0) { const g = G.gadgets[G.selGad]; return { gad: [g.x, g.y, g.a], L: g.L, aim: g.aim && g.aim.slice() }; }
   if (G.selProp >= 0) { const p = G.props[G.selProp]; return { prop: [p.x, p.y, p.a] }; }
   return { doms: [...G.sel].map(i => [i, G.layout[i].x, G.layout[i].y, G.layout[i].a]) };
+}
+// ---------- launcher aiming ----------
+const isLauncher = g => g && GADGETS[g.k].kind === 'launcher';
+function faceAim(g) { if (isLauncher(g) && g.aim) g.a = Math.atan2(g.aim[1] - g.y, g.aim[0] - g.x); }
+function planOf(g) { return launchPlan(G.W, { ...g, z: layerZ(G.W, g.L || 'g', g.x, g.y) }); }
+function surfaceAt(x, y, z) {
+  for (const id in G.W.tops) { const T = G.W.tops[id]; if (Math.abs(T.z - z) < 3 && pointInPoly(x, y, T.poly)) return T.f.label ? 'the ' + T.f.label.toLowerCase() : 'the furniture'; }
+  return 'the floor';
+}
+function lockedTarget(g) { return g.aim ? G.W.targets.find(t => Math.hypot(t.x - g.aim[0], t.y - g.aim[1]) < .6) : null; }
+function aimStatus(g) {
+  const P = planOf(g), t = lockedTarget(g);
+  if (P.clamped) return { bad: true, text: 'Too far: it falls short', P };
+  if (P.blocked) return { bad: true, text: 'Something is in the way', P };
+  return { bad: false, locked: !!t, text: t ? `Aimed at the ${t.label.toLowerCase()}` : `Lands on ${surfaceAt(...g.aim)}`, P };
+}
+// the first surface under the finger: floor, rug or any furniture top
+function aimPoint(sx, sy) {
+  const hits = rayFrom(sx, sy).intersectObjects([...R.pick, R.furn], true);
+  for (const h of hits) {
+    if (!h.face) continue;
+    const n = h.face.normal.clone().transformDirection(h.object.matrixWorld);
+    if (n.y > .5) return [h.point.x, h.point.z, h.point.y];
+  }
+  return null;
+}
+function setAim(g, p) {
+  const prev = [g.aim, g.a];
+  g.aim = snapAim(G.W, p[0], p[1], p[2]).aim; faceAim(g);
+  if (placeGadgetProblem(G.W, G.layout, g, G.gadgets, g, G.props)) { [g.aim, g.a] = prev; return false; }
+  G.gadVer++; return true;
+}
+// a new launcher aims at the nearest target it can reach, or straight ahead
+function defaultAim(g) {
+  let best = null, bd = 1e9;
+  for (const t of G.W.targets) {
+    const aim = snapAim(G.W, t.x, t.y, t.mounted ? t.z0 : t.base).aim, P = planOf({ ...g, aim });
+    const d = Math.hypot(t.x - g.x, t.y - g.y);
+    if (!P.clamped && !P.blocked && d < bd) { bd = d; best = aim; }
+  }
+  if (best) return best;
+  const x = g.x + Math.cos(g.a) * 100, y = g.y + Math.sin(g.a) * 100;
+  return [x, y, layerZ(G.W, layerAt(G.W, x, y), x, y)];
 }
 function placeGadget(fp) {
   const k = G.gadType;
@@ -1180,12 +1255,17 @@ function placeGadget(fp) {
   const gd = { k, x: fp[0], y: fp[1], a, L: fp[3], power: GADGETS[k].pdef };
   const why = placeGadgetProblem(G.W, G.layout, gd, G.gadgets, null, G.props);
   if (why) { toast(why === 'edge' ? 'It needs to sit fully on the surface.' : why === 'slippery' ? 'Too slippery here.' : "There isn't room for it there."); return; }
+  if (isLauncher(gd)) {
+    gd.aim = defaultAim(gd); faceAim(gd);
+    if (placeGadgetProblem(G.W, G.layout, gd, G.gadgets, null, G.props)) { gd.a = a; gd.aim = [gd.x + Math.cos(a) * 100, gd.y + Math.sin(a) * 100, layerZ(G.W, 'g', gd.x, gd.y)]; }
+  }
   pushUndo();
   G.gadgets.push(gd);
   G.tool = 'move'; document.querySelectorAll('.tool').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tool === 'move')));
   G.sel.clear(); G.selProp = -1; G.selGad = G.gadgets.length - 1;
   changed();
-  toast('Aim it with the gold handle and set the power.');
+  if (isLauncher(gd)) { const t = lockedTarget(gd); toast(t ? `Aimed at the ${t.label.toLowerCase()}. Drag the gold target to change it.` : 'Drag the gold target to where the marble should land.'); }
+  else toast('Aim it with the gold handle and set the ' + GADGETS[gd.k].label.toLowerCase() + '.');
 }
 function onPlaced(i, g, color, gid) {
   if (G.layout.length > G.budget) {
@@ -1294,11 +1374,15 @@ function onMove(e) {
       gesture = { type: 'drag', he, w0, orig: snapshotSel() };
       updateSelBar();
     }
+  } else if (gesture.type === 'aim') {
+    const p = aimPoint(sx, sy); if (!p) return;
+    gesture.moved = true;
+    if (setAim(G.gadgets[gesture.gi], p)) updateSelBar();
   } else if (gesture.type === 'drag' && gesture.orig.gad) {
     // gadgets can hop between the floor and furniture tops
     const fp = floorPoint(sx, sy); if (!fp) return;
     const g = G.gadgets[G.selGad];
-    g.x = fp[0]; g.y = fp[1]; g.L = fp[3]; G.gadVer++;
+    g.x = fp[0]; g.y = fp[1]; g.L = fp[3]; faceAim(g); G.gadVer++; updateSelBar();
     G.dragBad = !!placeGadgetProblem(G.W, G.layout, g, G.gadgets, g, G.props);
   } else if (gesture.type === 'drag') {
     const w = planeAt(sx, sy, gesture.he); if (!w) return;
@@ -1352,8 +1436,11 @@ function onUp(e) {
       G.lastTap = now;
     } else { G.sel.clear(); G.selProp = -1; if (G.selGad >= 0) { G.selGad = -1; G.gadVer++; } }
     updateSelBar();
+  } else if (g.type === 'aim') {
+    if (!g.moved) G.undo.pop(); else changed();
+    updateSelBar();
   } else if (g.type === 'drag' || g.type === 'rotate') {
-    if (G.dragBad) { applySel(g.orig, (x, y, a) => [x, y, a]); if (g.orig.gad) G.gadgets[G.selGad].L = g.orig.L; G.undo.pop(); toast("That spot is taken. It's back where it was."); }
+    if (G.dragBad) { applySel(g.orig, (x, y, a) => [x, y, a]); if (g.orig.gad) { const gg = G.gadgets[G.selGad]; gg.L = g.orig.L; gg.aim = g.orig.aim; } G.undo.pop(); toast("That spot is taken. It's back where it was."); }
     G.dragBad = false; buildPropsIfMoved(); changed();
   }
 }
