@@ -1308,6 +1308,112 @@ function onDown(e) {
     }
   }
 }
+// ---------- holding a piece: turn it between two fingers ----------
+// Two fingers on or around a domino, gadget or marble pick it up: it follows the fingers' midpoint and turns as
+// they twist, like turning a real domino between finger and thumb. On a trackpad (Safari's rotate gesture),
+// with option-scroll, or with [ and ], the piece under the pointer (or the selection) turns in place.
+function pickAny(sx, sy) {
+  const gi = pickGadget(sx, sy); if (gi >= 0) return { gi };
+  const pi = pickProp(sx, sy); if (pi >= 0) return { pi };
+  const di = pickDomino(sx, sy); if (di >= 0) return { di };
+  return null;
+}
+function selHit(sx, sy) {
+  if (G.selGad >= 0) return pickGadget(sx, sy) === G.selGad;
+  if (G.selProp >= 0) return pickProp(sx, sy) === G.selProp;
+  if (!G.sel.size) return false;
+  const di = pickDomino(sx, sy); return di >= 0 && G.sel.has(di);
+}
+function beginHold(points) {
+  if (!G || G.mode !== 'edit') return null;
+  const cont = gesture && (gesture.type === 'drag' || gesture.type === 'rotate') ? gesture : null;
+  if (!cont) {
+    let pk = null;
+    if (!points.some(q => selHit(q[0], q[1]))) {
+      for (const q of points) { pk = pickAny(q[0], q[1]); if (pk) break; }
+      if (!pk) return null;
+      G.sel.clear(); G.selProp = -1; G.selGad = -1;
+      if (pk.gi != null) G.selGad = pk.gi; else if (pk.pi != null) G.selProp = pk.pi; else G.sel.add(pk.di);
+      G.gadVer++;
+    }
+    pushUndo();
+  }
+  const orig = snapshotSel(), H = { orig, revert: cont ? cont.orig : orig, he: selZ(), da: 0, moved: !!cont, snapped: null, clearAfter: G.tool !== 'move' };
+  // what a lone domino can line up with: its neighbours, and the walls
+  H.cands = [0, Math.PI / 4, Math.PI / 2, 3 * Math.PI / 4];
+  if (orig.doms && orig.doms.length === 1) {
+    const d = G.layout[orig.doms[0][0]];
+    G.layout.forEach((o, j) => { if (j !== orig.doms[0][0] && o.L === d.L && Math.hypot(o.x - d.x, o.y - d.y) < 16) H.cands.push(o.a); });
+  }
+  updateSelBar(); return H;
+}
+const wrapPi = a => Math.atan2(Math.sin(a), Math.cos(a));
+function snapTurn(H, da) {
+  const o = H.orig; let best = null;
+  if (o.doms && o.doms.length === 1) {
+    const a1 = o.doms[0][3] + da;
+    for (const c of H.cands) { let df = (c - a1) % Math.PI; if (df > Math.PI / 2) df -= Math.PI; if (df < -Math.PI / 2) df += Math.PI; if (Math.abs(df) < 5 * Math.PI / 180 && (best == null || Math.abs(df) < Math.abs(best))) best = df; }
+  } else if (o.gad) {
+    const a1 = o.gad[2] + da, st = Math.PI / 12, df = Math.round(a1 / st) * st - a1; if (Math.abs(df) < 4 * Math.PI / 180) best = df;
+  } else {
+    const st = Math.PI / 12, df = Math.round(da / st) * st - da; if (Math.abs(df) < 3 * Math.PI / 180) best = df;
+  }
+  const key = best == null ? null : Math.round((da + best) * 1000);
+  if (key != null && key !== H.snapped) { try { navigator.vibrate && navigator.vibrate(8); } catch (er) { /* no vibration */ } }
+  H.snapped = key;
+  return best == null || H.noSnap ? da : da + best;
+}
+function aimZ(x, y, z0) {
+  for (const id in G.W.tops) { const T = G.W.tops[id]; if (Math.abs(T.z - z0) < 3 && pointInPoly(x, y, T.poly)) return T.z; }
+  return floorAt(G.W, x, y);
+}
+// place the held piece: turned by da about the point m0, which has moved to m
+function holdApply(H, m0, m, da) {
+  da = snapTurn(H, da);
+  const c = Math.cos(da), s = Math.sin(da);
+  const f = (x, y, a) => [m[0] + (x - m0[0]) * c - (y - m0[1]) * s, m[1] + (x - m0[0]) * s + (y - m0[1]) * c, a + da];
+  applySel(H.orig, f);
+  if (H.orig.gad && H.orig.aim) {
+    // a catapult's landing target swings round with it
+    const g = G.gadgets[G.selGad], [ax, ay] = f(H.orig.aim[0], H.orig.aim[1], 0);
+    g.aim = [ax, ay, aimZ(ax, ay, H.orig.aim[2])];
+    G.dragBad = !!placeGadgetProblem(G.W, G.layout, g, G.gadgets, g, G.props); G.gadVer++;
+  }
+  if (Math.abs(da) > .01 || Math.hypot(m[0] - m0[0], m[1] - m0[1]) > .3) H.moved = true;
+  G.dirty = true;
+}
+function endHold(H) {
+  if (!H.moved) { G.undo.pop(); }
+  else {
+    if (H.orig.gad && H.orig.aim && !G.dragBad) { const g = G.gadgets[G.selGad]; setAim(g, g.aim); }
+    if (G.dragBad) {
+      applySel(H.revert, (x, y, a) => [x, y, a]);
+      if (H.revert.gad) { const g = G.gadgets[G.selGad]; g.L = H.revert.L; g.aim = H.revert.aim; G.gadVer++; }
+      G.undo.pop(); toast("That spot is taken. It's back where it was.");
+    }
+    G.dragBad = false; changed();
+  }
+  if (H.clearAfter) { G.sel.clear(); G.selProp = -1; if (G.selGad >= 0) { G.selGad = -1; G.gadVer++; } }
+  updateSelBar();
+}
+function fingerFrame(H) {
+  const [a, b] = [...pointers.values()];
+  const wa = planeAt(a[0], a[1], H.he), wb = planeAt(b[0], b[1], H.he);
+  if (!wa || !wb) return null;
+  return { m: [(wa[0] + wb[0]) / 2, (wa[1] + wb[1]) / 2], ang: Math.atan2(wb[1] - wa[1], wb[0] - wa[0]) };
+}
+// a turn that isn't from fingers on the screen: the selection, or the piece under the pointer, turns in place
+function turnHold(sx, sy) {
+  const pts = sx != null ? [[sx, sy]] : [];
+  let H = null;
+  if (G.sel.size || G.selGad >= 0 || G.selProp >= 0) {
+    if (!pts.length || selHit(sx, sy) || !pickAny(sx, sy)) { pushUndo(); H = { orig: snapshotSel(), he: selZ(), da: 0, moved: false, snapped: null, clearAfter: false, cands: [0, Math.PI / 4, Math.PI / 2, 3 * Math.PI / 4] }; H.revert = H.orig; }
+  }
+  if (!H && pts.length) H = beginHold(pts);
+  if (!H) return null;
+  H.m0 = selCentroid(); return H;
+}
+let hoverXY = null, tpad = null, wheelHold = null;
 function snapshotSel() {
   if (G.selGad >= 0) { const g = G.gadgets[G.selGad]; return { gad: [g.x, g.y, g.a], L: g.L, aim: g.aim && g.aim.slice() }; }
   if (G.selProp >= 0) { const p = G.props[G.selProp]; return { prop: [p.x, p.y, p.a] }; }
@@ -1407,6 +1513,14 @@ function startTwoFinger() {
   }
   if (gesture && gesture.lp) clearTimeout(gesture.lp);
   const [a, b] = [...pointers.values()];
+  if (G.mode === 'edit' && G.tool !== 'erase') {
+    const H = beginHold([[(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], a, b]);
+    if (H) {
+      const fr = fingerFrame(H);
+      if (fr) { H.m0 = fr.m; H.ang0 = fr.ang; gesture = { type: 'grip', H }; return; }
+      endHold(H);
+    }
+  }
   gesture = { type: 'two', d: Math.hypot(a[0] - b[0], a[1] - b[1]), ang: Math.atan2(b[1] - a[1], b[0] - a[0]), mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] };
 }
 function panBy(fromS, toS) {
@@ -1434,12 +1548,20 @@ function onMove(e) {
   if (!G) return;
   const [sx, sy] = localXY(e);
   if (!pointers.has(e.pointerId)) {
+    if (e.pointerType === 'mouse') hoverXY = [sx, sy];
     if (G.tool === 'erase' && e.pointerType === 'mouse' && G.mode === 'edit') { const fp = floorPoint(sx, sy); G.eraseAt = fp ? [fp[0], fp[1]] : null; if (fp) G.eraseR = handleRadiusWorld(fp[0], fp[2], fp[1]) / 9 * 22; }
     return;
   }
   pointers.set(e.pointerId, [sx, sy]);
   if (!gesture) return;
-  if (gesture.type === 'two') {
+  if (gesture.type === 'grip') {
+    if (pointers.size < 2) return;
+    const H = gesture.H, fr = fingerFrame(H); if (!fr) return;
+    H.da = wrapPi(fr.ang - H.ang0) + (H.turns || 0);
+    if (Math.abs(H.da - (H.last || 0)) > Math.PI) { H.turns = (H.turns || 0) + (H.da < (H.last || 0) ? 2 * Math.PI : -2 * Math.PI); H.da = wrapPi(fr.ang - H.ang0) + H.turns; }
+    H.last = H.da;
+    holdApply(H, H.m0, fr.m, H.da);
+  } else if (gesture.type === 'two') {
     if (pointers.size < 2) return;
     const [a, b] = [...pointers.values()];
     const d = Math.hypot(a[0] - b[0], a[1] - b[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]), mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
@@ -1520,6 +1642,7 @@ function onUp(e) {
   if (!pointers.has(e.pointerId)) return;
   pointers.delete(e.pointerId);
   if (!gesture) return;
+  if (gesture.type === 'grip') { endHold(gesture.H); gesture = pointers.size ? { type: 'two', d: 0, ang: 0, mid: [0, 0] } : null; return; }
   if (gesture.type === 'two') { if (pointers.size === 0) gesture = null; return; }
   if (pointers.size > 0) return;
   const g = gesture; gesture = null;
@@ -1589,12 +1712,39 @@ cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('wheel', e => {
   if (!G) return; e.preventDefault();
   const [wx, wy] = localXY(e);
+  if (e.altKey && G.mode === 'edit' && !pointers.size) {
+    if (!wheelHold) { const H = turnHold(wx, wy); if (!H) return; wheelHold = { H }; }
+    const H = wheelHold.H, dd = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+    H.da += dd * (e.deltaMode ? 0.08 : 0.004); holdApply(H, H.m0, H.m0, H.da);
+    clearTimeout(wheelHold.t); wheelHold.t = setTimeout(() => { const w = wheelHold; wheelHold = null; if (w) endHold(w.H); }, 260);
+    return;
+  }
   if (e.ctrlKey) zoomBy(Math.exp(e.deltaY * 0.01), wx, wy);
   else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) orbitBy(-e.deltaX * .5, 0);
   else zoomBy(Math.exp(e.deltaY * 0.0012), wx, wy);
 }, { passive: false });
+// Safari reports trackpad pinch and rotate as gesture events (other browsers send pinch as ctrl-scroll and no rotate)
+cv.addEventListener('gesturestart', e => {
+  e.preventDefault();
+  if (!G || pointers.size) { tpad = { skip: true }; return; } // touch screens are handled by the pointer code
+  tpad = { r: 0, s: 1, H: G.mode === 'edit' && hoverXY ? turnHold(hoverXY[0], hoverXY[1]) : null };
+});
+cv.addEventListener('gesturechange', e => {
+  e.preventDefault();
+  if (!tpad || tpad.skip || pointers.size) return;
+  const dr = (e.rotation - tpad.r) * Math.PI / 180; tpad.r = e.rotation;
+  if (e.scale > 0) { zoomBy(tpad.s / e.scale, hoverXY && hoverXY[0], hoverXY && hoverXY[1]); tpad.s = e.scale; }
+  if (tpad.H) { tpad.H.da += dr; holdApply(tpad.H, tpad.H.m0, tpad.H.m0, tpad.H.da); }
+  else { cam.az += dr; applyCamera(); }
+});
+cv.addEventListener('gestureend', e => { e.preventDefault(); if (tpad && tpad.H) endHold(tpad.H); tpad = null; });
+cv.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') hoverXY = null; });
 window.addEventListener('keydown', e => {
   if (!G || $('game').hidden) return;
+  if ((e.key === '[' || e.key === ']') && G.mode === 'edit' && !pointers.size) {
+    const H = turnHold(hoverXY && hoverXY[0], hoverXY && hoverXY[1]);
+    if (H) { H.noSnap = true; holdApply(H, H.m0, H.m0, (e.key === ']' ? 1 : -1) * (e.shiftKey ? 5 : 15) * Math.PI / 180); endHold(H); }
+  }
   if (e.code === 'Space' && e.target === document.body) { spaceDown = true; e.preventDefault(); }
   if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); undo(); }
   if ((e.key === 'Delete' || e.key === 'Backspace') && G.sel.size && G.mode === 'edit') deleteSel();

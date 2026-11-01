@@ -27,6 +27,8 @@ Each room scores up to three dominoes: finish the job, use par or fewer, and mak
   - **Pulley lift** (height): hit it and its platform raises a marble to the set height, then nudges it off the front onto a ledge.
   - **Trampoline** (spring): any marble landing on it is thrown up and forward in the direction of its arrow.
 - **Parts box** – a cardboard box in front of each room holds everything you have left: the dominoes standing in rows and small models of the room's gadgets. Parts disappear from it as you build and come back when you erase or undo, and the printed flap keeps count. Tap the dominoes to start building, or tap a gadget to pick it up and place it. Upstairs rooms keep the box on a stool.
+- **Turn a piece** – put two fingers on or around a domino, gadget or marble and twist: it turns and moves with your fingers, like turning a real domino between finger and thumb, and clicks into line with nearby dominoes and the walls (45° steps). A catapult's landing target swings round with it. Two fingers away from any piece still move the camera. Works in Build, Move and Gadgets; in Move, two fingers on a selected line turn the whole line.
+  - On a computer: twist on a Mac trackpad (Safari only, since other browsers don't report trackpad rotation), option-scroll, or press `[` / `]` (15°, with Shift 5°). These turn the piece under the pointer, or the selection.
 - **Move** – tap to select, hold to grab a whole line, drag the handle to rotate, double-tap to flip.
 - **Erase**, **Undo**.
 - **Preview** plays a test run and stands everything back up. **Run** is the attempt that's scored.
